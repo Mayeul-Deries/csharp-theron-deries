@@ -93,4 +93,35 @@ public class BattleGridTests : BunitContext
         // Assert
         Assert.Null(selectedCoordinate);
     }
+
+    [Fact]
+    public void Render_ShouldExposeGridAccessibilitySemantics()
+    {
+        // Arrange
+        var cells = new[] { new CellDto(2, 3, CellState.Hit) };
+
+        // Act
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells));
+
+        // Assert
+        Assert.Equal("grid", renderedGrid.Find("[role='grid']").GetAttribute("role"));
+        Assert.Equal("gridcell", renderedGrid.Find("[role='gridcell']")
+            .GetAttribute("role"));
+    }
+
+    [Fact]
+    public void Render_ShouldDescribeCellCoordinatesAndState()
+    {
+        // Arrange
+        var cells = new[] { new CellDto(2, 3, CellState.Hit) };
+
+        // Act
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells));
+
+        // Assert
+        var label = renderedGrid.Find("button").GetAttribute("aria-label");
+        Assert.Equal("Ligne 3, colonne 4, état Hit", label);
+    }
 }
