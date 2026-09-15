@@ -1,0 +1,21 @@
+@using BattleShip.Models.DTOs
+
+<div class="battle-grid" role="grid">
+    @foreach (var cell in Cells)
+    {
+        <button type="button"
+                class="battle-cell cell-@cell.State.ToString().ToLowerInvariant()"
+                aria-label="@GetCellLabel(cell)"
+                role="gridcell">
+            @cell.State
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<CellDto> Cells { get; set; } = [];
+
+    private static string GetCellLabel(CellDto cell) =>
+        $"Ligne {cell.Row + 1}, colonne {cell.Col + 1}, état {cell.State}";
+}
