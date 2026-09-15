@@ -1,4 +1,5 @@
 @using BattleShip.Models.DTOs
+@using BattleShip.Models.Domain
 
 <div class="battle-grid" role="grid">
     @foreach (var cell in Cells)
@@ -6,7 +7,8 @@
         <button type="button"
                 class="battle-cell cell-@cell.State.ToString().ToLowerInvariant()"
                 aria-label="@GetCellLabel(cell)"
-                role="gridcell">
+                role="gridcell"
+                @onclick="() => SelectCellAsync(cell)">
             @cell.State
         </button>
     }
@@ -16,6 +18,12 @@
     [Parameter]
     public IReadOnlyList<CellDto> Cells { get; set; } = [];
 
+    [Parameter]
+    public EventCallback<Coordinate> CellSelected { get; set; }
+
     private static string GetCellLabel(CellDto cell) =>
         $"Ligne {cell.Row + 1}, colonne {cell.Col + 1}, état {cell.State}";
+
+    private Task SelectCellAsync(CellDto cell) =>
+        CellSelected.InvokeAsync(new Coordinate(cell.Row, cell.Col));
 }
