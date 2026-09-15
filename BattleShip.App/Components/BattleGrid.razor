@@ -8,6 +8,7 @@
                 class="battle-cell cell-@cell.State.ToString().ToLowerInvariant()"
                 aria-label="@GetCellLabel(cell)"
                 role="gridcell"
+                disabled="@(IsDisabled || !IsInteractive)"
                 @onclick="() => SelectCellAsync(cell)">
             @cell.State
         </button>
@@ -21,9 +22,22 @@
     [Parameter]
     public EventCallback<Coordinate> CellSelected { get; set; }
 
+    [Parameter]
+    public bool IsInteractive { get; set; } = true;
+
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
     private static string GetCellLabel(CellDto cell) =>
         $"Ligne {cell.Row + 1}, colonne {cell.Col + 1}, état {cell.State}";
 
-    private Task SelectCellAsync(CellDto cell) =>
-        CellSelected.InvokeAsync(new Coordinate(cell.Row, cell.Col));
+    private Task SelectCellAsync(CellDto cell)
+    {
+        if (IsDisabled || !IsInteractive)
+        {
+            return Task.CompletedTask;
+        }
+
+        return CellSelected.InvokeAsync(new Coordinate(cell.Row, cell.Col));
+    }
 }

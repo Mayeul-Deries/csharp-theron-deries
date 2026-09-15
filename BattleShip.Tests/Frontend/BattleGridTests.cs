@@ -59,4 +59,38 @@ public class BattleGridTests : BunitContext
         // Assert
         Assert.Equal(new Coordinate(2, 3), selectedCoordinate);
     }
+
+    [Fact]
+    public void Render_WhenDisabled_ShouldDisableAllCells()
+    {
+        // Arrange
+        var cells = new[] { new CellDto(2, 3, CellState.Empty) };
+
+        // Act
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells)
+            .Add(component => component.IsDisabled, true));
+
+        // Assert
+        Assert.True(renderedGrid.Find("button").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void Click_WhenNotInteractive_ShouldNotRaiseSelectedCoordinate()
+    {
+        // Arrange
+        var cells = new[] { new CellDto(2, 3, CellState.Empty) };
+        Coordinate? selectedCoordinate = null;
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells)
+            .Add(component => component.IsInteractive, false)
+            .Add(component => component.CellSelected,
+                coordinate => selectedCoordinate = coordinate));
+
+        // Act
+        renderedGrid.Find("button").Click();
+
+        // Assert
+        Assert.Null(selectedCoordinate);
+    }
 }
