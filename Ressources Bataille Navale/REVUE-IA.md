@@ -27,3 +27,16 @@ Trois revues argumentées minimum. Aucune erreur n’est exigée ; chaque conclu
 - Preuves reproductibles et liens vers les commits : `feat(frontend): integrate game REST contract`.
 - Après correction éventuelle : une directive `@using BattleShip.App.Components` a été ajoutée après le premier build pour supprimer l'avertissement Razor `RZ10012`.
 - Limites et points non vérifiés : aucun test d'intégration réseau, aucune vérification CORS, aucune preuve d'échange gRPC-Web et aucun test navigateur ; l'API backend n'expose pas encore les routes annoncées.
+
+## Revue : tests isolés du client REST
+
+- Proposition et référence dans le dépôt : ajouter `BattleShip.Tests/Frontend/GameApiClientTests.cs` avec un faux `HttpMessageHandler`.
+- Hypothèse à vérifier : le client respecte le contrat HTTP indépendamment de l'implémentation du serveur.
+- Scénario, données ou commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
+- Résultat attendu avant exécution : les routes, verbes, corps JSON, réponses et erreurs HTTP doivent être vérifiés sans accès réseau.
+- Erreur que ce contrôle pourrait détecter : régression de route, payload incorrect, enum non désérialisable ou exception HTTP sans statut.
+- Résultat réellement observé : 28 tests réussis ; les quatre nouveaux scénarios passent.
+- Décision et justification : proposition acceptée. Le test isolé est adapté à cette étape car l'API n'est pas encore implémentée.
+- Preuves reproductibles et liens vers les commits : fichier `BattleShip.Tests/Frontend/GameApiClientTests.cs`; commit à créer après revue.
+- Après correction éventuelle : aucune correction nécessaire après exécution.
+- Limites et points non vérifiés : pas de serveur réel, pas de CORS, pas de test gRPC-Web et pas de vérification du comportement métier du moteur.
