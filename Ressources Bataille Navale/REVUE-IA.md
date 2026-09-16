@@ -14,3 +14,16 @@ Trois revues argumentées minimum. Aucune erreur n’est exigée ; chaque conclu
 - Preuves reproductibles et liens vers les commits :
 - Après correction éventuelle : résultat avant / après :
 - Limites et points non vérifiés :
+
+## Revue : client HTTP frontend basé sur le contrat prévu
+
+- Proposition et référence dans le dépôt : ajouter `BattleShip.App/Services/GameApiClient.cs` et brancher la page Blazor sur les trois routes REST annoncées par le binôme.
+- Hypothèse à vérifier : le frontend peut compiler et manipuler les DTO partagés avant que l'API réelle et le service gRPC soient intégrés.
+- Scénario, données ou commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
+- Résultat attendu avant exécution : compilation de l'application Blazor et réussite des tests existants.
+- Erreur que ce contrôle pourrait détecter : mauvais nom de route, type de DTO incompatible, composant Razor non résolu ou régression de la grille.
+- Résultat réellement observé : compilation réussie et 22 tests réussis.
+- Décision et justification : proposition acceptée pour l'étape frontend HTTP. La réponse de tir est désérialisée dans un type privé minimal afin de ne pas modifier `ShotResultDto` partagé avant confirmation du contrat final.
+- Preuves reproductibles et liens vers les commits : `feat(frontend): integrate game REST contract`.
+- Après correction éventuelle : une directive `@using BattleShip.App.Components` a été ajoutée après le premier build pour supprimer l'avertissement Razor `RZ10012`.
+- Limites et points non vérifiés : aucun test d'intégration réseau, aucune vérification CORS, aucune preuve d'échange gRPC-Web et aucun test navigateur ; l'API backend n'expose pas encore les routes annoncées.

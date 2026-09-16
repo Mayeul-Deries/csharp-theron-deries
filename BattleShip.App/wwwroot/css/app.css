@@ -105,6 +105,44 @@ code {
     color: #c02d76;
 }
 
+.battle-grid {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(2rem, 1fr));
+    gap: 3px;
+    max-width: 520px;
+}
+
+.battle-cell {
+    aspect-ratio: 1;
+    border: 1px solid #adb5bd;
+    border-radius: 3px;
+    color: transparent;
+    cursor: pointer;
+    font-size: 0;
+    padding: 0;
+}
+
+.battle-cell:disabled {
+    cursor: default;
+}
+
+.cell-empty {
+    background: #d9f0ff;
+}
+
+.cell-ship {
+    background: #6c757d;
+}
+
+.cell-hit,
+.cell-sunk {
+    background: #dc3545;
+}
+
+.cell-miss {
+    background: #f8f9fa;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
     color: var(--bs-secondary-color);
     text-align: end;

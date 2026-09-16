@@ -1,7 +1,133 @@
 ﻿@page "/"
+@using System.Net.Http
+@using BattleShip.App.Components
+@using BattleShip.App.Services
+@using BattleShip.Models.Domain
+@using BattleShip.Models.DTOs
+@using BattleShip.Models.Enums
+@inject GameApiClient GameApi
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Bataille navale</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="game-page">
+    <header class="game-header">
+        <div>
+            <p class="eyebrow">Bataille navale</p>
+            <h1>Affrontez l'IA</h1>
+        </div>
+        <button class="btn btn-primary" @onclick="StartGameAsync" disabled="@IsBusy">
+            @(Game is null ? "Nouvelle partie" : "Recommencer")
+        </button>
+    </header>
 
-Welcome to your new app.
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+
+    <section class="status-panel" aria-live="polite">
+        <strong>@StatusLabel</strong>
+        @if (LastShotResult is not null)
+        {
+            <span>Dernier tir : @LastShotResult</span>
+        }
+    </section>
+
+    @if (Game is null)
+    {
+        <section class="empty-state">
+            <p>Créez une partie pour afficher les grilles.</p>
+        </section>
+    }
+    else
+    {
+        <div class="boards">
+            <section class="board-panel">
+                <h2>Votre flotte</h2>
+                <BattleGrid Cells="@Game.PlayerGrid" IsInteractive="false" />
+            </section>
+
+            <section class="board-panel">
+                <h2>Grille adverse</h2>
+                <BattleGrid
+                    Cells="@Game.OpponentGrid"
+                    IsInteractive="@(Game.State == GameState.PlayerTurn)"
+                    IsDisabled="@IsBusy"
+                    CellSelected="TakeShotAsync" />
+                @if (Game.State == GameState.OpponentTurn)
+                {
+                    <p class="board-hint">
+                        L'IA doit maintenant jouer via l'échange gRPC-Web prévu.
+                    </p>
+                }
+            </section>
+        </div>
+    }
+</main>
+
+@code {
+    private GameStatusDto? Game { get; set; }
+    private ShotResult? LastShotResult { get; set; }
+    private bool IsBusy { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    private string StatusLabel => Game?.State switch
+    {
+        GameState.PlayerTurn => "À vous de jouer",
+        GameState.OpponentTurn => "Tour de l'IA",
+        GameState.PlayerWon => "Victoire !",
+        GameState.OpponentWon => "Défaite",
+        GameState.Setup => "Préparation de la partie",
+        _ => "Aucune partie"
+    };
+
+    private async Task StartGameAsync()
+    {
+        await ExecuteAsync(async () =>
+        {
+            var gameId = await GameApi.CreateGameAsync();
+            Game = await GameApi.GetGameAsync(gameId);
+            LastShotResult = null;
+        });
+    }
+
+    private async Task TakeShotAsync(Coordinate coordinate)
+    {
+        if (Game is null || Game.State != GameState.PlayerTurn)
+        {
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            LastShotResult = await GameApi.TakeShotAsync(
+                Game.GameId,
+                coordinate.Row,
+                coordinate.Col);
+            Game = await GameApi.GetGameAsync(Game.GameId);
+        });
+    }
+
+    private async Task ExecuteAsync(Func<Task> action)
+    {
+        ErrorMessage = null;
+        IsBusy = true;
+
+        try
+        {
+            await action();
+        }
+        catch (HttpRequestException exception)
+        {
+            ErrorMessage = $"L'API est inaccessible ou a refusé la requête ({exception.StatusCode}).";
+        }
+        catch (InvalidOperationException exception)
+        {
+            ErrorMessage = exception.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}
