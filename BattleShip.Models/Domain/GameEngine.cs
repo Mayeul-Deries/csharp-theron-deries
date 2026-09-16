@@ -15,6 +15,7 @@ public class GameEngine
 
     public void SetupPlayerGridWithDefaultShips() => PlaceDefaultShips(PlayerGrid);
     public void SetupOpponentGridWithDefaultShips() => PlaceDefaultShips(OpponentGrid);
+    public void SetupPlayerGridWithRandomShips() => PlaceRandomShips(PlayerGrid);
     public void SetupOpponentGridWithRandomShips() => PlaceRandomShips(OpponentGrid);
 
     private static void PlaceDefaultShips(Grid grid)
@@ -50,7 +51,7 @@ public class GameEngine
             }
         }
 
-        throw new InvalidOperationException("Impossible de placer aléatoirement la flotte adverse.");
+        throw new InvalidOperationException("Impossible de placer aléatoirement la flotte.");
     }
 
     public ShotResult TakeShot(Coordinate target)

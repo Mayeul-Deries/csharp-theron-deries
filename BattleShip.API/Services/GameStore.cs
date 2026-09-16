@@ -10,7 +10,7 @@ public sealed class GameStore
     public (Guid Id, GameEngine Engine) Create()
     {
         var engine = new GameEngine();
-        engine.SetupPlayerGridWithDefaultShips();
+        engine.SetupPlayerGridWithRandomShips();
         engine.SetupOpponentGridWithRandomShips();
         engine.StartGame();
 

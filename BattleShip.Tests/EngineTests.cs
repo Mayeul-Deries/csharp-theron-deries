@@ -71,6 +71,26 @@ public class EngineTests
     }
 
     [Fact]
+    public void GameEngine_SetupRandomShips_ShouldCreateValidPlayerFleet()
+    {
+        var engine = new GameEngine();
+
+        engine.SetupPlayerGridWithRandomShips();
+
+        Assert.Equal(5, engine.PlayerGrid.Ships.Count);
+        Assert.All(engine.PlayerGrid.Ships, ship =>
+        {
+            Assert.All(ship.OccupiedCoordinates, coordinate => Assert.True(coordinate.IsValid()));
+        });
+
+        var occupiedCoordinates = engine.PlayerGrid.Ships
+            .SelectMany(ship => ship.OccupiedCoordinates)
+            .ToList();
+
+        Assert.Equal(occupiedCoordinates.Count, occupiedCoordinates.Distinct().Count());
+    }
+
+    [Fact]
     public void GameEngine_TakeShot_ShouldReturnMiss_AndSwitchTurn_WhenWaterIsHit()
     {
         // Arrange
