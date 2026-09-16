@@ -9,7 +9,7 @@ namespace BattleShip.App.Services;
 /// <summary>
 /// Provides the HTTP operations required by the game screen.
 /// </summary>
-public sealed class GameApiClient
+public sealed class GameApiClient : IGameApiClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
