@@ -139,4 +139,28 @@ public class EngineTests
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => engine.TakeShot(target));
     }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndGiveTurnToPlayer()
+    {
+        var engine = new GameEngine();
+        engine.PlayerGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(0, 0), Direction.Horizontal));
+        engine.OpponentGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(0, 0), Direction.Horizontal));
+        engine.StartGame();
+        engine.TakeShot(new Coordinate(1, 0));
+
+        var result = engine.TakeOpponentShot(new Coordinate(9, 9));
+
+        Assert.Equal(ShotResult.Miss, result);
+        Assert.Equal(GameState.PlayerTurn, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldRejectCallOutsideOpponentTurn()
+    {
+        var engine = new GameEngine();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            engine.TakeOpponentShot(new Coordinate(0, 0)));
+    }
 }
