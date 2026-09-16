@@ -38,6 +38,19 @@
         }
     </section>
 
+    @if (Game?.State == GameState.PlayerWon)
+    {
+        <div class="game-result game-result-win" role="status">
+            Victoire ! Vous avez coulé toute la flotte adverse.
+        </div>
+    }
+    else if (Game?.State == GameState.OpponentWon)
+    {
+        <div class="game-result game-result-loss" role="status">
+            Défaite. La flotte adverse restante est révélée.
+        </div>
+    }
+
     @if (Game is null)
     {
         <section class="empty-state">

@@ -68,6 +68,26 @@ h2 {
     text-align: center;
 }
 
+.game-result {
+    border-radius: .5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+}
+
+.game-result-win {
+    background: #d1e7dd;
+    border: 1px solid #a3cfbb;
+    color: #0f5132;
+}
+
+.game-result-loss {
+    background: #f8d7da;
+    border: 1px solid #f1aeb5;
+    color: #842029;
+}
+
 @media (max-width: 700px) {
     .game-header,
     .status-panel {
