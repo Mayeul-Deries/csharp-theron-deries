@@ -52,6 +52,32 @@ public sealed class HomeTests : BunitContext
         });
     }
 
+    [Fact]
+    public async Task OpponentHit_ShouldCallGrpcAgain_UntilPlayerTurn()
+    {
+        var gameId = Guid.NewGuid();
+        var api = new FakeGameApiClient(
+            gameId,
+            CreateStatus(gameId, GameState.PlayerTurn),
+            CreateStatus(gameId, GameState.OpponentTurn),
+            CreateStatus(gameId, GameState.OpponentTurn),
+            CreateStatus(gameId, GameState.PlayerTurn));
+        var grpc = new FakeOpponentGrpcClient(ShotResult.Hit);
+        Services.AddSingleton<IGameApiClient>(api);
+        Services.AddSingleton<IOpponentGrpcClient>(grpc);
+
+        var page = Render<Home>();
+        await page.Find("button.btn-primary").ClickAsync();
+        await page.FindAll(".battle-cell")[100].ClickAsync();
+
+        page.WaitForAssertion(() =>
+        {
+            Assert.Equal(2, grpc.CallCount);
+            Assert.Contains("Tir de l'IA : Hit", page.Markup);
+            Assert.Contains("À vous de jouer", page.Markup);
+        });
+    }
+
     private static GameStatusDto CreateStatus(Guid gameId, GameState state) =>
         new(gameId, state, CreateCells(CellState.Ship), CreateCells(CellState.Empty));
 
@@ -96,14 +122,23 @@ public sealed class HomeTests : BunitContext
 
     private sealed class FakeOpponentGrpcClient : IOpponentGrpcClient
     {
+        private readonly ShotResult result;
+
+        public FakeOpponentGrpcClient(ShotResult result = ShotResult.Miss)
+        {
+            this.result = result;
+        }
+
         public Guid? GameId { get; private set; }
+        public int CallCount { get; private set; }
 
         public Task<OpponentShotResult> TakeOpponentShotAsync(
             Guid gameId,
             CancellationToken cancellationToken = default)
         {
             GameId = gameId;
-            return Task.FromResult(new OpponentShotResult(ShotResult.Miss, 4, 5));
+            CallCount++;
+            return Task.FromResult(new OpponentShotResult(result, 4, 5));
         }
     }
 }

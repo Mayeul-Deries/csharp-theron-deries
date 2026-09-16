@@ -118,10 +118,18 @@
                 return;
             }
 
-            var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(Game.GameId);
-            LastOpponentShotResult = opponentShot.Result;
-            Game = await GameApi.GetGameAsync(Game.GameId);
+            await PlayOpponentTurnsAsync(Game.GameId);
         });
+    }
+
+    private async Task PlayOpponentTurnsAsync(Guid gameId)
+    {
+        while (Game?.State == GameState.OpponentTurn)
+        {
+            var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(gameId);
+            LastOpponentShotResult = opponentShot.Result;
+            Game = await GameApi.GetGameAsync(gameId);
+        }
     }
 
     private async Task ExecuteAsync(Func<Task> action)
