@@ -9,7 +9,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7091/")
+    BaseAddress = new Uri("http://localhost:5282/")
 });
 builder.Services.AddScoped<GameApiClient>();
 builder.Services.AddScoped<IGameApiClient>(sp => sp.GetRequiredService<GameApiClient>());

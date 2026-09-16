@@ -20,7 +20,7 @@ public sealed class OpponentGrpcClient : IOpponentGrpcClient, IDisposable
             new HttpClientHandler());
 
         channel = GrpcChannel.ForAddress(
-            "https://localhost:7091",
+            "http://localhost:5282",
             new GrpcChannelOptions { HttpHandler = handler });
         client = new GameService.GameServiceClient(channel);
     }
