@@ -141,6 +141,85 @@ public class EngineTests
     }
 
     [Fact]
+    public void GameEngine_TakeShot_ShouldTransitionToPlayerWon_WhenAllOpponentShipsAreSunk()
+    {
+        // Arrange
+        var engine = new GameEngine();
+        // Place un seul petit bateau pour l'adversaire pour simplifier
+        var target = new Coordinate(0, 0);
+        engine.OpponentGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, target, Direction.Horizontal)); // (0,0) et (0,1)
+        engine.StartGame();
+
+        // Act
+        engine.TakeShot(new Coordinate(0, 0));
+        var result = engine.TakeShot(new Coordinate(0, 1));
+
+        // Assert
+        Assert.Equal(ShotResult.Sunk, result);
+        Assert.Equal(GameState.PlayerWon, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldTransitionToOpponentWon_WhenAllPlayerShipsAreSunk()
+    {
+        // Arrange
+        var engine = new GameEngine();
+        // Place un seul petit bateau pour le joueur
+        var target = new Coordinate(0, 0);
+        engine.PlayerGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, target, Direction.Horizontal)); // (0,0) et (0,1)
+        engine.StartGame();
+        
+        // On force le tour à OpponentTurn pour que l'IA puisse tirer
+        // Nous allons simuler le tour de l'IA en passant un tir manqué du joueur
+        engine.TakeShot(new Coordinate(9, 9)); // Tir dans l'eau -> OpponentTurn
+        Assert.Equal(GameState.OpponentTurn, engine.State);
+
+        // Act
+        engine.TakeOpponentShot(new Coordinate(0, 0));
+        var result = engine.TakeOpponentShot(new Coordinate(0, 1));
+
+        // Assert
+        Assert.Equal(ShotResult.Sunk, result);
+        Assert.Equal(GameState.OpponentWon, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndSwitchToPlayerTurn_WhenWaterIsHit()
+    {
+        // Arrange
+        var engine = new GameEngine();
+        engine.SetupPlayerGridWithDefaultShips();
+        engine.StartGame();
+        
+        // Joueur rate pour passer le tour à l'adversaire
+        engine.TakeShot(new Coordinate(9, 9)); 
+
+        // Act
+        var result = engine.TakeOpponentShot(new Coordinate(9, 9)); // L'IA tire dans l'eau chez le joueur
+
+        // Assert
+        Assert.Equal(ShotResult.Miss, result);
+        Assert.Equal(GameState.PlayerTurn, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeShot_ShouldThrowException_WhenGameIsAlreadyWon()
+    {
+        // Arrange
+        var engine = new GameEngine();
+        engine.OpponentGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(0, 0), Direction.Horizontal));
+        engine.StartGame();
+
+        // Coulons le bateau pour gagner la partie
+        engine.TakeShot(new Coordinate(0, 0));
+        engine.TakeShot(new Coordinate(0, 1));
+        Assert.Equal(GameState.PlayerWon, engine.State);
+
+        // Act & Assert : Impossible de tirer après la victoire
+        Assert.Throws<InvalidOperationException>(() => engine.TakeShot(new Coordinate(5, 5)));
+    }
+
+    [Fact]
     public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndGiveTurnToPlayer()
     {
         var engine = new GameEngine();
@@ -162,5 +241,35 @@ public class EngineTests
 
         Assert.Throws<InvalidOperationException>(() =>
             engine.TakeOpponentShot(new Coordinate(0, 0)));
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldTransitionToOpponentWon_WhenAllPlayerShipsAreSunk()
+    {
+        var engine = new GameEngine();
+        var target = new Coordinate(0, 0);
+        engine.PlayerGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, target, Direction.Horizontal));
+        engine.StartGame();
+        engine.TakeShot(new Coordinate(9, 9));
+
+        engine.TakeOpponentShot(new Coordinate(0, 0));
+        var result = engine.TakeOpponentShot(new Coordinate(0, 1));
+
+        Assert.Equal(ShotResult.Sunk, result);
+        Assert.Equal(GameState.OpponentWon, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndSwitchToPlayerTurn_WhenWaterIsHit()
+    {
+        var engine = new GameEngine();
+        engine.SetupPlayerGridWithDefaultShips();
+        engine.StartGame();
+        engine.TakeShot(new Coordinate(9, 9));
+
+        var result = engine.TakeOpponentShot(new Coordinate(9, 9));
+
+        Assert.Equal(ShotResult.Miss, result);
+        Assert.Equal(GameState.PlayerTurn, engine.State);
     }
 }

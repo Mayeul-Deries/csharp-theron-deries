@@ -49,9 +49,10 @@ public class GameEngine
 
         // Tir touché : vérifier si le navire est coulé
         bool isSunk = hitShip.OccupiedCoordinates.All(c => OpponentGrid.ShotsReceived.Contains(c));
+        bool opponentFleetSunk = OpponentGrid.Ships.All(ship => ship.OccupiedCoordinates.All(
+            coordinate => OpponentGrid.ShotsReceived.Contains(coordinate)));
 
-        // Règle : un tir touché laisse le tour au joueur actuel
-        State = GameState.PlayerTurn;
+        State = opponentFleetSunk ? GameState.PlayerWon : GameState.PlayerTurn;
 
         return isSunk ? ShotResult.Sunk : ShotResult.Hit;
     }
@@ -80,7 +81,7 @@ public class GameEngine
             coordinate => PlayerGrid.ShotsReceived.Contains(coordinate));
         bool playerFleetSunk = PlayerGrid.Ships.All(ship => ship.OccupiedCoordinates.All(
             coordinate => PlayerGrid.ShotsReceived.Contains(coordinate)));
-        State = playerFleetSunk ? GameState.OpponentWon : GameState.PlayerTurn;
+        State = playerFleetSunk ? GameState.OpponentWon : GameState.OpponentTurn;
 
         return isSunk ? ShotResult.Sunk : ShotResult.Hit;
     }
