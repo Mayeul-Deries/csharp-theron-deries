@@ -6,6 +6,7 @@
 @using BattleShip.Models.DTOs
 @using BattleShip.Models.Enums
 @inject GameApiClient GameApi
+@inject OpponentGrpcClient OpponentGrpc
 
 <PageTitle>Bataille navale</PageTitle>
 
@@ -30,6 +31,10 @@
         @if (LastShotResult is not null)
         {
             <span>Dernier tir : @LastShotResult</span>
+        }
+        @if (LastOpponentShotResult is not null)
+        {
+            <span>Tir de l'IA : @LastOpponentShotResult</span>
         }
     </section>
 
@@ -68,6 +73,7 @@
 @code {
     private GameStatusDto? Game { get; set; }
     private ShotResult? LastShotResult { get; set; }
+    private ShotResult? LastOpponentShotResult { get; set; }
     private bool IsBusy { get; set; }
     private string? ErrorMessage { get; set; }
 
@@ -88,6 +94,7 @@
             var gameId = await GameApi.CreateGameAsync();
             Game = await GameApi.GetGameAsync(gameId);
             LastShotResult = null;
+            LastOpponentShotResult = null;
         });
     }
 
@@ -104,6 +111,15 @@
                 Game.GameId,
                 coordinate.Row,
                 coordinate.Col);
+            Game = await GameApi.GetGameAsync(Game.GameId);
+
+            if (Game.State != GameState.OpponentTurn)
+            {
+                return;
+            }
+
+            var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(Game.GameId);
+            LastOpponentShotResult = opponentShot.Result;
             Game = await GameApi.GetGameAsync(Game.GameId);
         });
     }

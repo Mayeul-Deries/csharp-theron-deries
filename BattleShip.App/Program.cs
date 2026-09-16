@@ -12,5 +12,6 @@ builder.Services.AddScoped(_ => new HttpClient
     BaseAddress = new Uri("https://localhost:7091/")
 });
 builder.Services.AddScoped<GameApiClient>();
+builder.Services.AddScoped<OpponentGrpcClient>();
 
 await builder.Build().RunAsync();
