@@ -21,7 +21,6 @@ var app = builder.Build();
 
 app.UseCors();
 app.UseGrpcWeb();
-app.UseHttpsRedirection();
 app.MapGrpcService<GameGrpcService>().EnableGrpcWeb();
 
 app.MapPost("/games", (GameStore store) =>
