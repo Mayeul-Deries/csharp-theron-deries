@@ -55,4 +55,33 @@ public class GameEngine
 
         return isSunk ? ShotResult.Sunk : ShotResult.Hit;
     }
+
+    public ShotResult TakeOpponentShot(Coordinate target)
+    {
+        if (State != GameState.OpponentTurn)
+            throw new InvalidOperationException("Ce n'est pas le tour de l'adversaire.");
+
+        if (!target.IsValid())
+            throw new ArgumentOutOfRangeException(nameof(target), "Coordonnées hors limites.");
+
+        if (!PlayerGrid.ShotsReceived.Add(target))
+            throw new InvalidOperationException("Cette case a déjà été visée.");
+
+        var hitShip = PlayerGrid.Ships.FirstOrDefault(
+            ship => ship.OccupiedCoordinates.Contains(target));
+
+        if (hitShip is null)
+        {
+            State = GameState.PlayerTurn;
+            return ShotResult.Miss;
+        }
+
+        bool isSunk = hitShip.OccupiedCoordinates.All(
+            coordinate => PlayerGrid.ShotsReceived.Contains(coordinate));
+        bool playerFleetSunk = PlayerGrid.Ships.All(ship => ship.OccupiedCoordinates.All(
+            coordinate => PlayerGrid.ShotsReceived.Contains(coordinate)));
+        State = playerFleetSunk ? GameState.OpponentWon : GameState.PlayerTurn;
+
+        return isSunk ? ShotResult.Sunk : ShotResult.Hit;
+    }
 }
