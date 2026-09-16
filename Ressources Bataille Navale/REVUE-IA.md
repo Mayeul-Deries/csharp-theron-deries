@@ -1,42 +1,61 @@
 # Revues de propositions IA
 
-Trois revues argumentées minimum. Aucune erreur n’est exigée ; chaque conclusion doit être étayée.
-
-## Revue : sujet du projet
-
-- Proposition et référence dans le dépôt :
-- Hypothèse à vérifier :
-- Scénario, données ou commande :
-- Résultat attendu avant exécution :
-- Erreur que ce contrôle pourrait détecter :
-- Résultat réellement observé :
-- Décision et justification :
-- Preuves reproductibles et liens vers les commits :
-- Après correction éventuelle : résultat avant / après :
-- Limites et points non vérifiés :
-
 ## Revue : client HTTP frontend basé sur le contrat prévu
 
-- Proposition et référence dans le dépôt : ajouter `BattleShip.App/Services/GameApiClient.cs` et brancher la page Blazor sur les trois routes REST annoncées par le binôme.
-- Hypothèse à vérifier : le frontend peut compiler et manipuler les DTO partagés avant que l'API réelle et le service gRPC soient intégrés.
-- Scénario, données ou commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
-- Résultat attendu avant exécution : compilation de l'application Blazor et réussite des tests existants.
-- Erreur que ce contrôle pourrait détecter : mauvais nom de route, type de DTO incompatible, composant Razor non résolu ou régression de la grille.
-- Résultat réellement observé : compilation réussie et 22 tests réussis.
-- Décision et justification : proposition acceptée pour l'étape frontend HTTP. La réponse de tir est désérialisée dans un type privé minimal afin de ne pas modifier `ShotResultDto` partagé avant confirmation du contrat final.
-- Preuves reproductibles et liens vers les commits : `feat(frontend): integrate game REST contract`.
-- Après correction éventuelle : une directive `@using BattleShip.App.Components` a été ajoutée après le premier build pour supprimer l'avertissement Razor `RZ10012`.
-- Limites et points non vérifiés : aucun test d'intégration réseau, aucune vérification CORS, aucune preuve d'échange gRPC-Web et aucun test navigateur ; l'API backend n'expose pas encore les routes annoncées.
+**Proposition examinée**  
+Ajouter `BattleShip.App/Services/GameApiClient.cs` et brancher `Home.razor` sur `POST /games`, `GET /games/{gameId}` et `POST /games/{gameId}/shots`.
+
+**Hypothèse à vérifier**  
+Le frontend peut manipuler les DTO partagés et appeler les routes prévues avant l'implémentation complète de l'API.
+
+**Expérience**  
+Commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`. Résultat attendu : compilation de Blazor et réussite des tests. Cette commande peut détecter une incompatibilité de DTO, de composant Razor ou de référence de projet.
+
+**Observation**  
+La compilation a réussi et 22 tests ont été réussis. La preuve est reproductible avec la commande ci-dessus.
+
+**Décision et justification**  
+Acceptée. Le client REST isole le transport de l'interface et conserve les DTO partagés inchangés.
+
+**Preuves et limites**  
+Commit `38207c5 feat(frontend): integrate game REST contract`, `GameApiClient.cs` et ADR 0002. L'API réelle, CORS et le navigateur ne sont pas vérifiés.
 
 ## Revue : tests isolés du client REST
 
-- Proposition et référence dans le dépôt : ajouter `BattleShip.Tests/Frontend/GameApiClientTests.cs` avec un faux `HttpMessageHandler`.
-- Hypothèse à vérifier : le client respecte le contrat HTTP indépendamment de l'implémentation du serveur.
-- Scénario, données ou commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
-- Résultat attendu avant exécution : les routes, verbes, corps JSON, réponses et erreurs HTTP doivent être vérifiés sans accès réseau.
-- Erreur que ce contrôle pourrait détecter : régression de route, payload incorrect, enum non désérialisable ou exception HTTP sans statut.
-- Résultat réellement observé : 28 tests réussis ; les quatre nouveaux scénarios passent.
-- Décision et justification : proposition acceptée. Le test isolé est adapté à cette étape car l'API n'est pas encore implémentée.
-- Preuves reproductibles et liens vers les commits : fichier `BattleShip.Tests/Frontend/GameApiClientTests.cs`; commit à créer après revue.
-- Après correction éventuelle : aucune correction nécessaire après exécution.
-- Limites et points non vérifiés : pas de serveur réel, pas de CORS, pas de test gRPC-Web et pas de vérification du comportement métier du moteur.
+**Proposition examinée**  
+Ajouter `BattleShip.Tests/Frontend/GameApiClientTests.cs` avec un faux `HttpMessageHandler`.
+
+**Hypothèse à vérifier**  
+Le client respecte les verbes, routes, payloads JSON, réponses et codes HTTP sans dépendre d'un serveur lancé.
+
+**Expérience**  
+Commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`. Résultat attendu : les scénarios de création, lecture, tir et erreurs `400`, `404`, `500` passent. Le contrôle détecte notamment une régression de route ou de sérialisation.
+
+**Observation**  
+28 tests ont été réussis, dont les quatre tests du client REST.
+
+**Décision et justification**  
+Acceptée. Le faux handler rend la vérification déterministe et adaptée à l'absence actuelle d'API implémentée.
+
+**Preuves et limites**  
+`BattleShip.Tests/Frontend/GameApiClientTests.cs`. Le serveur réel, CORS et le comportement métier ne sont pas vérifiés. Commit à créer : `test(frontend): cover game REST client`.
+
+## Revue : RPC dédiée au tour de l'IA
+
+**Proposition examinée**  
+Ajouter `TakeOpponentShot` dans `Protos/game.proto` et l'appeler depuis `OpponentGrpcClient` après un tir joueur manqué.
+
+**Hypothèse à vérifier**  
+Une RPC distincte permet d'identifier explicitement le tir de l'ordinateur et de conserver le sens de `TakeShot`.
+
+**Expérience**  
+Commande : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : génération protobuf, compilation Blazor et maintien des tests verts. Le contrôle détecte un proto invalide, un package manquant ou une erreur de branchement.
+
+**Observation**  
+La génération protobuf et la compilation ont réussi ; 28 tests ont été réussis.
+
+**Décision et justification**  
+Acceptée côté frontend. Le serveur doit encore implémenter la RPC et configurer gRPC-Web pour valider le parcours complet.
+
+**Preuves et limites**  
+`Protos/game.proto`, `BattleShip.App/Services/OpponentGrpcClient.cs` et ADR 0003. Aucun appel réseau gRPC-Web réel, aucune vérification CORS et aucun comportement IA serveur ne sont encore prouvés. Commit à créer : `feat(frontend): integrate opponent grpc client`.

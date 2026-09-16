@@ -1,37 +1,33 @@
-# Échanges décisifs avec l’IA
+# Échanges décisifs avec l'IA
 
-## Date et sujet
+## 2026-09-16 — Intégration frontend du contrat REST
 
-- Outil / modèle si connu :
-- Contexte :
-- Prompt réellement utilisé :
-- Réponse et hypothèses résumées :
-- Décision et justification :
-- Scénario ou commande de vérification :
-- Résultat attendu, puis résultat observé :
-- Erreur que ce contrôle pourrait détecter :
-- Preuves reproductibles et limites :
+**Outil / modèle** : GitHub Copilot CLI, gpt-5.6-luna.
 
-## 2026-09-16 — Première intégration frontend du contrat de jeu
+**Contexte** : le backend n'est pas encore implémenté, mais le binôme a défini les routes REST, l'URL locale et le flux de tour. Le frontend Blazor doit avancer sans modifier les DTO partagés.
 
-- Outil / modèle si connu : GitHub Copilot CLI, gpt-5.6-luna.
-- Contexte : le backend n'est pas encore implémenté, mais Boris a défini les routes REST, l'URL locale et le flux de tour. Le frontend Blazor doit pouvoir être construit indépendamment.
-- Prompt réellement utilisé : « On peut commencer le frontend avec le contrat backend prévu ; respecter les DTO partagés, les routes REST, le rafraîchissement après un tir et préparer l'intégration gRPC de l'IA. »
-- Réponse et hypothèses résumées : créer un client HTTP typé, conserver les DTO partagés, utiliser une réponse locale minimale pour `{ "result": ... }`, afficher les deux grilles et ne pas simuler l'appel gRPC tant que `game.proto` n'est pas disponible.
-- Décision et justification : intégration HTTP acceptée ; l'appel gRPC reste une frontière explicite pour éviter de fabriquer un contrat Protobuf non validé.
-- Scénario ou commande de vérification : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
-- Résultat attendu, puis résultat observé : compilation de `BattleShip.App` et réussite des tests ; 22 tests réussis.
-- Erreur que ce contrôle pourrait détecter : DTO ou composant Razor incompatibles, erreur de compilation, régression des tests de `BattleGrid`.
-- Preuves reproductibles et limites : commit `feat(frontend): integrate game REST contract`; aucune vérification navigateur ni échange réel avec l'API, car les routes backend ne sont pas encore présentes.
+**Prompt** : « On peut commencer le frontend avec le contrat backend prévu ; respecter les DTO partagés, les routes REST, le rafraîchissement après un tir et préparer l'intégration gRPC de l'IA. »
 
-## 2026-09-16 — Vérification isolée du client REST
+**Réponse résumée** : créer un client HTTP typé, afficher les deux grilles, envoyer les tirs joueur et relire le statut après chaque tir. Ne pas simuler le gRPC tant que son contrat n'est pas disponible.
 
-- Outil / modèle si connu : GitHub Copilot CLI, gpt-5.6-luna.
-- Contexte : le client REST frontend doit être vérifié sans attendre le serveur backend.
-- Prompt réellement utilisé : « Ajouter des tests du client REST avec un faux `HttpMessageHandler` pour vérifier les routes, les corps JSON, les réponses et les erreurs HTTP. »
-- Réponse et hypothèses résumées : quatre scénarios xUnit couvrent la création, la lecture d'une partie, un tir et les statuts HTTP `400`, `404` et `500`.
-- Décision et justification : proposition acceptée ; le faux handler rend les tests déterministes et prouve le contrat émis par le navigateur sans dépendance réseau.
-- Scénario ou commande de vérification : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`.
-- Résultat attendu, puis résultat observé : 28 tests réussis, dont les tests du client REST.
-- Erreur que ce contrôle pourrait détecter : route mal construite, mauvais verbe HTTP, coordonnées mal sérialisées, réponse illisible ou perte du code HTTP.
-- Preuves reproductibles et limites : fichier `BattleShip.Tests/Frontend/GameApiClientTests.cs`; le test ne prouve pas le comportement réel du serveur ni CORS.
+**Décision** : acceptée. Cette séparation permet de construire et tester le frontend indépendamment du serveur, tout en conservant une frontière claire pour l'IA.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`. Résultat attendu : compilation de l'application et tests verts. Résultat observé : 22 tests réussis. Ce contrôle ne vérifie ni l'API réelle ni CORS.
+
+**Preuve** : commit `38207c5 feat(frontend): integrate game REST contract`, `BattleShip.App/Services/GameApiClient.cs`, `BattleShip.App/Pages/Home.razor` et ADR 0002.
+
+## 2026-09-16 — RPC dédiée au tour de l'IA
+
+**Outil / modèle** : GitHub Copilot CLI, gpt-5.6-luna.
+
+**Contexte** : le contrat fourni par le binôme décrit `GameService.TakeShot` comme un tir joueur. Il ne permet pas de déclencher le tir de l'ordinateur après un `Miss`, alors que la partie contre l'IA est obligatoire.
+
+**Prompt** : « Ajouter une RPC dédiée `TakeOpponentShot`, générer le client Blazor gRPC-Web et l'appeler après un `Miss`, sans simuler le serveur. »
+
+**Réponse résumée** : conserver `TakeShot` pour le joueur et ajouter `TakeOpponentShot`, avec `game_id` en entrée et `result`, `row`, `col` en sortie. Après l'appel, le frontend relit `GET /games/{gameId}`.
+
+**Décision** : adaptée puis acceptée côté frontend. Une RPC dédiée évite d'ambiguïser l'acteur du tir. Boris doit encore implémenter cette RPC côté API.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : génération protobuf, compilation et tests verts. Résultat observé : 28 tests réussis. Ce contrôle ne vérifie pas l'échange réseau réel.
+
+**Preuve** : `Protos/game.proto`, `BattleShip.App/Services/OpponentGrpcClient.cs`, ADR 0003 et le commit à créer `feat(frontend): integrate opponent grpc client`.
