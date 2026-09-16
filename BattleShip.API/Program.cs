@@ -1,41 +1,71 @@
+using BattleShip.API.Grpc;
+using BattleShip.API.Services;
+using BattleShip.API.Validation;
+using BattleShip.Models.AI;
+using BattleShip.Models.Domain;
+using BattleShip.Models.DTOs;
+using BattleShip.Models.Privacy;
+using FluentValidation;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddGrpc();
+builder.Services.AddSingleton<GameStore>();
+builder.Services.AddSingleton<AiOpponentService>();
+builder.Services.AddSingleton<IValidator<ShotRequest>, ShotRequestValidator>();
+builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
+    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
+app.UseCors();
+app.UseGrpcWeb();
 app.UseHttpsRedirection();
+app.MapGrpcService<GameGrpcService>().EnableGrpcWeb();
 
-var summaries = new[]
+app.MapPost("/games", (GameStore store) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var (id, _) = store.Create();
+    return Results.Created($"/games/{id}", new { GameId = id });
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/games/{gameId:guid}", (Guid gameId, GameStore store) =>
+    store.TryGet(gameId, out var engine) && engine is not null
+        ? Results.Ok(GamePrivacyMapper.ToStatusDto(gameId, engine))
+        : Results.NotFound());
+
+app.MapPost("/games/{gameId:guid}/shots", async (
+    Guid gameId,
+    ShotRequest request,
+    GameStore store,
+    IValidator<ShotRequest> validator) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var validation = await validator.ValidateAsync(request);
+    if (!validation.IsValid)
+        return Results.ValidationProblem(validation.ToDictionary());
+
+    if (!store.TryGet(gameId, out var engine) || engine is null)
+        return Results.NotFound();
+
+    try
+    {
+        var result = engine.TakeShot(new Coordinate(request.Row, request.Col));
+        return Results.Ok(new { Result = result });
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { Error = exception.Message });
+    }
+    catch (ArgumentOutOfRangeException exception)
+    {
+        return Results.BadRequest(new { Error = exception.Message });
+    }
+});
+
+if (app.Environment.IsDevelopment())
+    app.MapOpenApi();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
