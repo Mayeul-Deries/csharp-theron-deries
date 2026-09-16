@@ -15,6 +15,7 @@ public class GameEngine
 
     public void SetupPlayerGridWithDefaultShips() => PlaceDefaultShips(PlayerGrid);
     public void SetupOpponentGridWithDefaultShips() => PlaceDefaultShips(OpponentGrid);
+    public void SetupOpponentGridWithRandomShips() => PlaceRandomShips(OpponentGrid);
 
     private static void PlaceDefaultShips(Grid grid)
     {
@@ -23,6 +24,33 @@ public class GameEngine
         grid.TryAddShip(new Ship(ShipType.Destroyer, new Coordinate(4, 0), Direction.Horizontal));
         grid.TryAddShip(new Ship(ShipType.Submarine, new Coordinate(6, 0), Direction.Horizontal));
         grid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(8, 0), Direction.Horizontal));
+    }
+
+    private static void PlaceRandomShips(Grid grid)
+    {
+        foreach (var shipType in Enum.GetValues<ShipType>())
+        {
+            PlaceRandomShip(grid, shipType);
+        }
+    }
+
+    private static void PlaceRandomShip(Grid grid, ShipType shipType)
+    {
+        for (var attempt = 0; attempt < 1_000; attempt++)
+        {
+            var coordinate = new Coordinate(Random.Shared.Next(10), Random.Shared.Next(10));
+            var direction = Random.Shared.Next(2) == 0
+                ? Direction.Horizontal
+                : Direction.Vertical;
+            var ship = new Ship(shipType, coordinate, direction);
+
+            if (grid.TryAddShip(ship))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Impossible de placer aléatoirement la flotte adverse.");
     }
 
     public ShotResult TakeShot(Coordinate target)
