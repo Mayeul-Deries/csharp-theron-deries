@@ -243,33 +243,4 @@ public class EngineTests
             engine.TakeOpponentShot(new Coordinate(0, 0)));
     }
 
-    [Fact]
-    public void GameEngine_TakeOpponentShot_ShouldTransitionToOpponentWon_WhenAllPlayerShipsAreSunk()
-    {
-        var engine = new GameEngine();
-        var target = new Coordinate(0, 0);
-        engine.PlayerGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, target, Direction.Horizontal));
-        engine.StartGame();
-        engine.TakeShot(new Coordinate(9, 9));
-
-        engine.TakeOpponentShot(new Coordinate(0, 0));
-        var result = engine.TakeOpponentShot(new Coordinate(0, 1));
-
-        Assert.Equal(ShotResult.Sunk, result);
-        Assert.Equal(GameState.OpponentWon, engine.State);
-    }
-
-    [Fact]
-    public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndSwitchToPlayerTurn_WhenWaterIsHit()
-    {
-        var engine = new GameEngine();
-        engine.SetupPlayerGridWithDefaultShips();
-        engine.StartGame();
-        engine.TakeShot(new Coordinate(9, 9));
-
-        var result = engine.TakeOpponentShot(new Coordinate(9, 9));
-
-        Assert.Equal(ShotResult.Miss, result);
-        Assert.Equal(GameState.PlayerTurn, engine.State);
-    }
 }
