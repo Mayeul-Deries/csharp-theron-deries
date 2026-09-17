@@ -31,3 +31,20 @@
 **Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : génération protobuf, compilation et tests verts. Résultat observé : 28 tests réussis. Ce contrôle ne vérifie pas l'échange réseau réel.
 
 **Preuve** : `Protos/game.proto`, `BattleShip.App/Services/OpponentGrpcClient.cs`, ADR 0003 et le commit à créer `feat(frontend): integrate opponent grpc client`.
+
+## 2026-09-17 — Refonte tactique de l'UI d'après maquette Google Stitch
+
+**Outil / modèle** : Antigravity, Gemini.
+
+**Contexte** : Le skin initial de l'application Blazor est le template par défaut de Microsoft. Une maquette générée sur Google Stitch présente une interface de commandement naval sombre (Radar Ennemi, Votre Flotte avec intégrité, État de la flotte Alliés vs Ennemis, et Journal des tirs).
+
+**Prompt** : « Ok niquel. Bon actuellement mon jeu est très moche, c'est le skin de base de blazor et j'ai envie de l'améliorer. J'ai demandé à google stitch de générer une maquette que je te transmets en photo, et je fais appelle à toi pour l'implémenter car tu es bon en frontend. Si ca te convient tu peux démarer. »
+
+**Réponse résumée** : Établir un plan d'architecture respectant les contraintes du cours (anti-triche, contrats DTO, bUnit), enrichir `CellDto` avec `ShipType` optionnel (sans fuite d'information adverse), créer un design system tactique CSS complet (`app.css`), ajouter les composants `FleetStatusPanel` et `ShotLogPanel`, implémenter le ciblage en 2 temps (sélection de coordonnée avec réticule `[ ⊙ ]` puis tir via `TIRER SUR [COORD]`), et valider avec 49 tests unitaires et bUnit au vert.
+
+**Décision** : Acceptée. La refonte transforme radicalement l'attrait visuel et la finition du projet tout en garantissant la maintenabilité et le respect strict des règles métier.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : 49 tests passés avec succès. Test interactif dans le navigateur avec `browser_subagent` validant la séquence complète d'engagement, la riposte gRPC de l'IA et le journal.
+
+**Preuve** : Commits `c3a621e`, `12e4daa`, enregistrement vidéo navigateur `tactical_ui_test_1789638490429.webp`, et revue dans `REVUE-IA.md`.
+
