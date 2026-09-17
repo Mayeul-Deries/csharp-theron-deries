@@ -28,7 +28,8 @@ public static class GamePrivacyMapper
             for (int c = 0; c < 10; c++)
             {
                 var coord = new Coordinate(r, c);
-                bool hasShip = grid.Ships.Any(s => s.OccupiedCoordinates.Contains(coord));
+                var ship = grid.Ships.FirstOrDefault(s => s.OccupiedCoordinates.Contains(coord));
+                bool hasShip = ship is not null;
                 bool isShot = grid.ShotsReceived.Contains(coord);
 
                 CellState state = (hasShip, isShot) switch
@@ -39,7 +40,7 @@ public static class GamePrivacyMapper
                     (false, false) => CellState.Empty
                 };
 
-                cells.Add(new CellDto(r, c, state));
+                cells.Add(new CellDto(r, c, state, ship?.Type));
             }
         }
         return cells;
@@ -55,7 +56,8 @@ public static class GamePrivacyMapper
             for (int c = 0; c < 10; c++)
             {
                 var coord = new Coordinate(r, c);
-                bool hasShip = grid.Ships.Any(s => s.OccupiedCoordinates.Contains(coord));
+                var ship = grid.Ships.FirstOrDefault(s => s.OccupiedCoordinates.Contains(coord));
+                bool hasShip = ship is not null;
                 bool isShot = grid.ShotsReceived.Contains(coord);
 
                 CellState state = (hasShip, isShot) switch
@@ -66,7 +68,14 @@ public static class GamePrivacyMapper
                     _ => CellState.Empty
                 };
 
-                cells.Add(new CellDto(r, c, state));
+                ShipType? exposedType = state switch
+                {
+                    CellState.Sunk => ship?.Type,
+                    CellState.Ship when revealShips => ship?.Type,
+                    _ => null
+                };
+
+                cells.Add(new CellDto(r, c, state, exposedType));
             }
         }
         return cells;
