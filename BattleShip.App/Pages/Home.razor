@@ -122,7 +122,7 @@
                         <span>Radar Ennemi</span>
                     </div>
                     <span class="card-header-meta">
-                        Cible : <strong class="meta-cyan">@(SelectedCoordinateFormatted ?? "--")</strong>
+                        Cible : <strong class="meta-cyan">@(LastFiredCoordinateFormatted ?? "--")</strong>
                     </span>
                 </div>
 
@@ -130,7 +130,6 @@
                     <div class="tactical-grid-wrapper">
                         <BattleGrid
                             Cells="@Game.OpponentGrid"
-                            SelectedCoordinate="@SelectedCoordinate"
                             IsInteractive="@(Game.State == GameState.PlayerTurn)"
                             IsDisabled="@IsBusy"
                             CellSelected="OnOpponentCellSelectedAsync" />
@@ -139,16 +138,20 @@
 
                 <div class="card-footer">
                     <div>
-                        Coordonnée sélectionnée :
-                        <strong class="meta-cyan">@(SelectedCoordinateFormatted ?? "Aucune")</strong>
+                        Dernier tir :
+                        <strong class="meta-cyan">@(LastFiredCoordinateFormatted ?? "Aucun")</strong>
                     </div>
 
-                    <button type="button"
-                            class="btn-fire"
-                            disabled="@(!CanFire)"
-                            @onclick="FireSelectedShotAsync">
-                        @(SelectedCoordinate.HasValue ? $"Tirer sur {SelectedCoordinateFormatted}" : "Sélectionner une cible")
-                    </button>
+                    <div>
+                        @if (Game.State == GameState.PlayerTurn)
+                        {
+                            <span class="meta-cyan" style="font-size: 0.8rem; letter-spacing: 0.5px;">● Clic direct pour tirer</span>
+                        }
+                        else if (Game.State == GameState.OpponentTurn)
+                        {
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">Verrouillé (Tour de l'IA)</span>
+                        }
+                    </div>
                 </div>
             </section>
 
@@ -231,13 +234,11 @@
     private List<ShotLogPanel.ShotLogItem> ShotLogs { get; } = [];
     private int nextLogId = 1;
 
-    private string? SelectedCoordinateFormatted => SelectedCoordinate.HasValue
-        ? $"{(char)('A' + SelectedCoordinate.Value.Col)}-{(SelectedCoordinate.Value.Row + 1):D2}"
-        : null;
+    private Coordinate? LastFiredCoordinate { get; set; }
 
-    private bool CanFire => Game?.State == GameState.PlayerTurn
-                            && !IsBusy
-                            && SelectedCoordinate.HasValue;
+    private string? LastFiredCoordinateFormatted => LastFiredCoordinate.HasValue
+        ? $"{(char)('A' + LastFiredCoordinate.Value.Col)}-{(LastFiredCoordinate.Value.Row + 1):D2}"
+        : null;
 
     private string TurnPillClass => Game?.State switch
     {
@@ -320,7 +321,7 @@
         {
             var gameId = await GameApi.CreateGameAsync();
             Game = await GameApi.GetGameAsync(gameId);
-            SelectedCoordinate = null;
+            LastFiredCoordinate = null;
             LastShotResult = null;
             LastOpponentShotResult = null;
             ShotLogs.Clear();
@@ -342,26 +343,16 @@
             return;
         }
 
-        // Double click on already selected cell fires immediately
-        if (SelectedCoordinate.HasValue &&
-            SelectedCoordinate.Value.Row == coordinate.Row &&
-            SelectedCoordinate.Value.Col == coordinate.Col)
-        {
-            await FireSelectedShotAsync();
-            return;
-        }
-
-        SelectedCoordinate = coordinate;
+        LastFiredCoordinate = coordinate;
+        await FireShotAsync(coordinate);
     }
 
-    private async Task FireSelectedShotAsync()
+    private async Task FireShotAsync(Coordinate target)
     {
-        if (!CanFire || !SelectedCoordinate.HasValue || Game is null)
+        if (Game is null || Game.State != GameState.PlayerTurn || IsBusy)
         {
             return;
         }
-
-        var target = SelectedCoordinate.Value;
 
         await ExecuteAsync(async () =>
         {
@@ -379,7 +370,6 @@
             ));
 
             Game = await GameApi.GetGameAsync(Game.GameId);
-            SelectedCoordinate = null;
 
             if (Game.State != GameState.OpponentTurn)
             {

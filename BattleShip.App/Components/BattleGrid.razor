@@ -114,11 +114,7 @@
                 role="gridcell"
                 disabled="@(IsDisabled || !IsInteractive)"
                 @onclick="() => SelectCellAsync(cell)">
-            @if (isSelected)
-            {
-                <span class="reticle-bracket" aria-hidden="true">[ ⊙ ]</span>
-            }
-            else if (cell.State == CellState.Hit)
+            @if (cell.State == CellState.Hit)
             {
                 <span class="hit-icon" aria-hidden="true">✕</span>
             }
@@ -141,6 +137,10 @@
                 {
                     <span class="ship-dot" aria-hidden="true"></span>
                 }
+            }
+            else if (isSelected)
+            {
+                <span class="reticle-bracket" aria-hidden="true">⊙</span>
             }
         </button>
     };

@@ -42,7 +42,6 @@ public sealed class HomeTests : BunitContext
         await page.Find("button.btn-primary").ClickAsync();
         page.WaitForAssertion(() => Assert.Equal(200, page.FindAll(".battle-cell").Count));
         await page.FindAll(".battle-cell")[0].ClickAsync();
-        await page.Find("button.btn-fire").ClickAsync();
 
         page.WaitForAssertion(() =>
         {
@@ -70,7 +69,6 @@ public sealed class HomeTests : BunitContext
         var page = Render<Home>();
         await page.Find("button.btn-primary").ClickAsync();
         await page.FindAll(".battle-cell")[0].ClickAsync();
-        await page.Find("button.btn-fire").ClickAsync();
 
         page.WaitForAssertion(() =>
         {
@@ -81,7 +79,7 @@ public sealed class HomeTests : BunitContext
     }
 
     [Fact]
-    public async Task SelectingCell_ShouldUpdateTargetCoordinate_AndEnableFireButton()
+    public async Task ClickingCell_ShouldDirectlyFireShot_AndAdvanceGame()
     {
         var gameId = Guid.NewGuid();
         var api = new FakeGameApiClient(gameId, CreateStatus(gameId, GameState.PlayerTurn));
@@ -91,12 +89,10 @@ public sealed class HomeTests : BunitContext
         var page = Render<Home>();
         await page.Find("button.btn-primary").ClickAsync();
 
-        Assert.True(page.Find("button.btn-fire").HasAttribute("disabled"));
-
         await page.FindAll(".battle-cell")[0].ClickAsync();
 
         Assert.Contains("A-01", page.Markup);
-        Assert.False(page.Find("button.btn-fire").HasAttribute("disabled"));
+        Assert.Equal(1, api.TakeShotCallCount);
     }
 
     private static GameStatusDto CreateStatus(Guid gameId, GameState state) =>
@@ -114,6 +110,7 @@ public sealed class HomeTests : BunitContext
         private int statusIndex;
 
         public int GetGameCallCount { get; private set; }
+        public int TakeShotCallCount { get; private set; }
 
         public Task<Guid> CreateGameAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(gameId);
@@ -137,6 +134,7 @@ public sealed class HomeTests : BunitContext
             Assert.Equal(gameId, requestedGameId);
             Assert.Equal(0, row);
             Assert.Equal(0, col);
+            TakeShotCallCount++;
             return Task.FromResult(ShotResult.Miss);
         }
     }

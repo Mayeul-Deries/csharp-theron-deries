@@ -150,7 +150,7 @@ public class BattleGridTests : BunitContext
             .Add(component => component.SelectedCoordinate, new Coordinate(2, 3)));
 
         Assert.Contains("cell-selected", renderedGrid.Find("button").ClassList);
-        Assert.Contains("[ ⊙ ]", renderedGrid.Find("button").TextContent);
+        Assert.Contains("⊙", renderedGrid.Find("button").TextContent);
     }
 
     [Fact]
