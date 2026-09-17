@@ -41,6 +41,29 @@ h2 {
     padding: .85rem 1rem;
 }
 
+.turn-indicator {
+    align-items: center;
+    display: inline-flex;
+    gap: .45rem;
+    font-weight: 600;
+}
+
+.turn-spinner {
+    animation: turn-spin .8s linear infinite;
+    border: 2px solid #adb5bd;
+    border-top-color: #212529;
+    border-radius: 50%;
+    display: inline-block;
+    height: .9rem;
+    width: .9rem;
+}
+
+@keyframes turn-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .boards {
     flex-wrap: wrap;
 }

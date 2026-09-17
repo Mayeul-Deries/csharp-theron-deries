@@ -26,8 +26,12 @@
         <div class="alert alert-danger" role="alert">@ErrorMessage</div>
     }
 
-    <section class="status-panel" aria-live="polite">
+    <section class="status-panel" aria-live="polite" aria-busy="@IsBusy">
         <strong>@StatusLabel</strong>
+        @if (IsOpponentThinking)
+        {
+            <span class="turn-indicator"><span class="turn-spinner" aria-hidden="true"></span>L'IA réfléchit...</span>
+        }
         @if (LastShotResult is not null)
         {
             <span>Dernier tir : @LastShotResult</span>
@@ -75,7 +79,7 @@
                 @if (Game.State == GameState.OpponentTurn)
                 {
                     <p class="board-hint">
-                        L'IA doit maintenant jouer via l'échange gRPC-Web prévu.
+                        @(IsOpponentThinking ? "La grille est verrouillée pendant le tour de l'IA." : "Tour de l'IA")
                     </p>
                 }
             </section>
@@ -88,6 +92,7 @@
     private ShotResult? LastShotResult { get; set; }
     private ShotResult? LastOpponentShotResult { get; set; }
     private bool IsBusy { get; set; }
+    private bool IsOpponentThinking { get; set; }
     private string? ErrorMessage { get; set; }
 
     private string StatusLabel => Game?.State switch
@@ -113,7 +118,7 @@
 
     private async Task TakeShotAsync(Coordinate coordinate)
     {
-        if (Game is null || Game.State != GameState.PlayerTurn)
+        if (Game is null || Game.State != GameState.PlayerTurn || IsBusy)
         {
             return;
         }
@@ -137,11 +142,21 @@
 
     private async Task PlayOpponentTurnsAsync(Guid gameId)
     {
-        while (Game?.State == GameState.OpponentTurn)
+        IsOpponentThinking = true;
+
+        try
         {
-            var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(gameId);
-            LastOpponentShotResult = opponentShot.Result;
-            Game = await GameApi.GetGameAsync(gameId);
+            while (Game?.State == GameState.OpponentTurn)
+            {
+                var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(gameId);
+                LastOpponentShotResult = opponentShot.Result;
+                Game = await GameApi.GetGameAsync(gameId);
+                await Task.Delay(350);
+            }
+        }
+        finally
+        {
+            IsOpponentThinking = false;
         }
     }
 
