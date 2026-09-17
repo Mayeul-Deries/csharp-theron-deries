@@ -39,14 +39,30 @@
 
     <div class="command-right">
         <div class="command-stats" aria-label="Statistiques de tir">
-            <span>Tirs : <strong class="stat-num">@PlayerShotsCount</strong></span>
-            <span class="stat-divider">|</span>
-            <span>Précision : <strong class="stat-precision">@AccuracyPercentage%</strong></span>
+            @if (Game is not null)
+            {
+                <span>Tirs : <strong class="stat-num">@PlayerShotsCount</strong></span>
+                <span class="stat-divider">|</span>
+                <span>Précision : <strong class="stat-precision">@AccuracyPercentage%</strong></span>
+            }
+            else
+            {
+                <span>Flotte : <strong class="stat-num">@PlacedShips.Count / 5</strong></span>
+            }
         </div>
 
-        <button class="btn btn-primary btn-restart" @onclick="StartGameAsync" disabled="@IsBusy">
-            ↺ @(Game is null ? "Nouvelle partie" : "Recommencer")
-        </button>
+        @if (Game is null)
+        {
+            <button class="btn btn-primary btn-restart" @onclick="StartGameAsync" disabled="@IsBusy">
+                ⚡ Nouvelle partie
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-primary btn-restart" @onclick="RestartPlacementAsync" disabled="@IsBusy">
+                ↺ Recommencer
+            </button>
+        }
     </div>
 </header>
 
@@ -86,28 +102,125 @@
 
     @if (Game is null)
     {
-        <div class="tactical-card" style="padding: 4rem 2rem; text-align: center; align-items: center; gap: 1.5rem;">
-            <div class="brand-icon-wrapper" style="width: 64px; height: 64px;">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="2" x2="12" y2="6"></line>
-                    <line x1="12" y1="18" x2="12" y2="22"></line>
-                    <line x1="2" y1="12" x2="6" y2="12"></line>
-                    <line x1="18" y1="12" x2="22" y2="12"></line>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-            </div>
-            <div>
-                <h2 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; letter-spacing: 1px; text-transform: uppercase;">
-                    Centre de Commandement Tactique
-                </h2>
-                <p style="margin: 0; color: var(--text-secondary); font-family: var(--font-mono);">
-                    Initialisez la liaison satellite pour engager l'affrontement contre l'IA navale.
-                </p>
-            </div>
-            <button class="btn btn-primary btn-restart" style="padding: 0.75rem 2rem; font-size: 1rem;" @onclick="StartGameAsync">
-                Initialiser la partie
-            </button>
+        <!-- PHASE DE DÉPLOIEMENT TACTIQUE -->
+        <div class="placement-container">
+            <!-- GRILLE DE DÉPLOIEMENT -->
+            <section class="tactical-card" aria-label="Zone de Déploiement Allié">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="fleet-dot" aria-hidden="true"></span>
+                        <span>Déploiement de votre Flotte</span>
+                    </div>
+                    <span class="card-header-meta">
+                        Actif : <strong class="meta-cyan">@CurrentShipInfo.Name (@CurrentShipInfo.Size cases)</strong>
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <div class="tactical-grid-wrapper">
+                        <BattleGrid
+                            Cells="@PlacementCells"
+                            IsInteractive="true"
+                            IsDisabled="@IsBusy"
+                            IsPlayerFleet="true"
+                            PreviewCoordinates="@PlacementPreviewCoordinates"
+                            IsPreviewValid="@IsPlacementPreviewValid"
+                            CellHovered="OnPlacementCellHovered"
+                            CellUnhovered="OnPlacementCellUnhovered"
+                            CellSelected="OnPlacementCellSelectedAsync" />
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div>
+                        Orientation :
+                        <strong class="meta-cyan">@(PlacementDirection == Direction.Horizontal ? "HORIZONTALE →" : "VERTICALE ↓")</strong>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Cliquez pour placer (clic sur un navire existant pour le déplacer)
+                    </div>
+                </div>
+            </section>
+
+            <!-- DOCK DE FLOTTE -->
+            <aside class="tactical-card placement-dock" aria-label="Dock de Déploiement">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="radar-dot" aria-hidden="true"></span>
+                        <span>Dock de Flotte</span>
+                    </div>
+                    <span class="card-header-meta">
+                        <strong class="meta-emerald">@PlacedShips.Count / 5</strong> prêts
+                    </span>
+                </div>
+
+                <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class="dock-ship-list" role="radiogroup" aria-label="Sélection des navires">
+                        @foreach (var type in AllShipTypes)
+                        {
+                            var info = ShipMetadata[type];
+                            bool isPlaced = PlacedShips.Any(p => p.ShipType == type);
+                            bool isSelected = CurrentShipType == type;
+
+                            <button type="button"
+                                    class="dock-ship-card @(isSelected ? "active" : "") @(isPlaced ? "placed" : "")"
+                                    @onclick="() => SelectShipToPlace(type)">
+                                <div class="ship-info-group">
+                                    <span class="ship-badge-tag">@info.Badge</span>
+                                    <div class="ship-name-and-size">
+                                        <span class="ship-name">@info.Name</span>
+                                        <div class="ship-dots" aria-hidden="true">
+                                            @for (int i = 0; i < info.Size; i++)
+                                            {
+                                                <span class="ship-size-dot"></span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="ship-status-badge @(isPlaced ? "status-badge-placed" : "status-badge-to-place")">
+                                    @(isPlaced ? "✓ Placé" : "À placer")
+                                </span>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="dock-controls-group">
+                        <button type="button"
+                                class="orientation-toggle-btn"
+                                @onclick="TogglePlacementOrientation">
+                            <span>⟳ Orientation :</span>
+                            <strong class="meta-cyan">@(PlacementDirection == Direction.Horizontal ? "HORIZONTALE →" : "VERTICALE ↓")</strong>
+                        </button>
+
+                        <div class="dock-actions-row">
+                            <button type="button"
+                                    class="btn-dock-action"
+                                    @onclick="RandomizePlacements">
+                                ↺ Aléatoire
+                            </button>
+                            <button type="button"
+                                    class="btn-dock-action"
+                                    @onclick="ResetPlacements">
+                                ✕ Réinitialiser
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(PlacementError))
+                        {
+                            <div class="placement-error-box" role="alert">
+                                ⚠️ @PlacementError
+                            </div>
+                        }
+
+                        <button type="button"
+                                class="btn-launch-battle"
+                                disabled="@(PlacedShips.Count != 5 || IsBusy)"
+                                @onclick="StartPlacedGameAsync">
+                            ENGAGER LE COMBAT ⚔️
+                        </button>
+                    </div>
+                </div>
+            </aside>
         </div>
     }
     else
@@ -217,19 +330,49 @@
         }
         else
         {
-            <span>En attente</span>
+            <span>Phase de préparation</span>
         }
     </div>
 </footer>
 
 @code {
     private GameStatusDto? Game { get; set; }
-    private Coordinate? SelectedCoordinate { get; set; }
     private ShotResult? LastShotResult { get; set; }
     private ShotResult? LastOpponentShotResult { get; set; }
     private bool IsBusy { get; set; }
     private bool IsOpponentThinking { get; set; }
     private string? ErrorMessage { get; set; }
+
+    // Placement state
+    private List<ShipPlacementDto> PlacedShips { get; } = [];
+    private ShipType CurrentShipType { get; set; } = ShipType.Carrier;
+    private Direction PlacementDirection { get; set; } = Direction.Horizontal;
+    private IReadOnlySet<Coordinate>? PlacementPreviewCoordinates { get; set; }
+    private bool IsPlacementPreviewValid { get; set; } = true;
+    private string? PlacementError { get; set; }
+
+    private static readonly ShipType[] AllShipTypes =
+    [
+        ShipType.Carrier,
+        ShipType.Battleship,
+        ShipType.Destroyer,
+        ShipType.Submarine,
+        ShipType.TorpedoBoat
+    ];
+
+    private static readonly IReadOnlyDictionary<ShipType, (string Name, string Badge, int Size)> ShipMetadata =
+        new Dictionary<ShipType, (string Name, string Badge, int Size)>
+        {
+            [ShipType.Carrier] = ("Porte-avions", "CV", 5),
+            [ShipType.Battleship] = ("Cuirassé", "BB", 4),
+            [ShipType.Destroyer] = ("Croiseur", "CA", 3),
+            [ShipType.Submarine] = ("Sous-marin", "SS", 3),
+            [ShipType.TorpedoBoat] = ("Torpilleur", "TB", 2)
+        };
+
+    private (string Name, string Badge, int Size) CurrentShipInfo => ShipMetadata[CurrentShipType];
+
+    private IReadOnlyList<CellDto> PlacementCells => BuildPlacementCells();
 
     private List<ShotLogPanel.ShotLogItem> ShotLogs { get; } = [];
     private int nextLogId = 1;
@@ -246,7 +389,6 @@
         GameState.OpponentTurn => "turn-pill-opponent",
         GameState.PlayerWon => "turn-pill-win",
         GameState.OpponentWon => "turn-pill-loss",
-        GameState.Setup => "turn-pill-setup",
         _ => "turn-pill-setup"
     };
 
@@ -256,8 +398,7 @@
         GameState.OpponentTurn => "Tour de l'IA",
         GameState.PlayerWon => "Victoire !",
         GameState.OpponentWon => "Défaite",
-        GameState.Setup => "Préparation de la partie",
-        _ => "En attente"
+        _ => "Déploiement Tactique"
     };
 
     private int PlayerShotsCount => Game?.OpponentGrid
@@ -326,7 +467,186 @@
             LastOpponentShotResult = null;
             ShotLogs.Clear();
             nextLogId = 1;
+            PlacementError = null;
         });
+    }
+
+    private async Task StartPlacedGameAsync()
+    {
+        if (PlacedShips.Count != 5)
+        {
+            PlacementError = "Veuillez placer vos 5 navires avant d'engager le combat.";
+            return;
+        }
+
+        await ExecuteAsync(async () =>
+        {
+            var gameId = await GameApi.CreateGameAsync(new CreateGameRequest(PlacedShips.ToList()));
+            Game = await GameApi.GetGameAsync(gameId);
+            LastFiredCoordinate = null;
+            LastShotResult = null;
+            LastOpponentShotResult = null;
+            ShotLogs.Clear();
+            nextLogId = 1;
+            PlacementError = null;
+        });
+    }
+
+    private void RestartPlacementAsync()
+    {
+        Game = null;
+        PlacementError = null;
+        PlacementPreviewCoordinates = null;
+    }
+
+    private void SelectShipToPlace(ShipType type)
+    {
+        CurrentShipType = type;
+        PlacementError = null;
+    }
+
+    private void TogglePlacementOrientation()
+    {
+        PlacementDirection = PlacementDirection == Direction.Horizontal
+            ? Direction.Vertical
+            : Direction.Horizontal;
+        PlacementError = null;
+    }
+
+    private void RandomizePlacements()
+    {
+        var random = new Random();
+        var tempGrid = new Grid();
+        PlacedShips.Clear();
+
+        foreach (var type in AllShipTypes)
+        {
+            bool placed = false;
+            for (int attempt = 0; attempt < 500 && !placed; attempt++)
+            {
+                var dir = (Direction)random.Next(0, 2);
+                var row = random.Next(0, 10);
+                var col = random.Next(0, 10);
+                var ship = new Ship(type, new Coordinate(row, col), dir);
+                if (tempGrid.TryAddShip(ship))
+                {
+                    PlacedShips.Add(new ShipPlacementDto(type, row, col, dir));
+                    placed = true;
+                }
+            }
+        }
+
+        PlacementError = null;
+        PlacementPreviewCoordinates = null;
+    }
+
+    private void ResetPlacements()
+    {
+        PlacedShips.Clear();
+        CurrentShipType = ShipType.Carrier;
+        PlacementError = null;
+        PlacementPreviewCoordinates = null;
+    }
+
+    private void OnPlacementCellHovered(Coordinate coord)
+    {
+        UpdatePlacementPreview(coord);
+    }
+
+    private void OnPlacementCellUnhovered()
+    {
+        PlacementPreviewCoordinates = null;
+    }
+
+    private void UpdatePlacementPreview(Coordinate coord)
+    {
+        var candidate = new Ship(CurrentShipType, coord, PlacementDirection);
+        PlacementPreviewCoordinates = candidate.OccupiedCoordinates.ToHashSet();
+
+        bool withinBounds = candidate.OccupiedCoordinates.All(c => c.Row is >= 0 and < 10 && c.Col is >= 0 and < 10);
+        if (!withinBounds)
+        {
+            IsPlacementPreviewValid = false;
+            return;
+        }
+
+        var tempGrid = new Grid();
+        foreach (var p in PlacedShips.Where(s => s.ShipType != CurrentShipType))
+        {
+            tempGrid.TryAddShip(new Ship(p.ShipType, new Coordinate(p.Row, p.Col), p.Direction));
+        }
+
+        IsPlacementPreviewValid = tempGrid.TryAddShip(candidate);
+    }
+
+    private Task OnPlacementCellSelectedAsync(Coordinate coordinate)
+    {
+        // Check if there is already a ship on this coordinate
+        var existingPlacement = PlacedShips.FirstOrDefault(p =>
+        {
+            var ship = new Ship(p.ShipType, new Coordinate(p.Row, p.Col), p.Direction);
+            return ship.OccupiedCoordinates.Any(c => c.Row == coordinate.Row && c.Col == coordinate.Col);
+        });
+
+        if (existingPlacement != null)
+        {
+            PlacedShips.Remove(existingPlacement);
+            CurrentShipType = existingPlacement.ShipType;
+            PlacementDirection = existingPlacement.Direction;
+            PlacementError = null;
+            UpdatePlacementPreview(coordinate);
+            return Task.CompletedTask;
+        }
+
+        // Try placing the current ship at this coordinate
+        var candidate = new Ship(CurrentShipType, coordinate, PlacementDirection);
+        var tempGrid = new Grid();
+        foreach (var p in PlacedShips.Where(s => s.ShipType != CurrentShipType))
+        {
+            tempGrid.TryAddShip(new Ship(p.ShipType, new Coordinate(p.Row, p.Col), p.Direction));
+        }
+
+        if (!tempGrid.TryAddShip(candidate))
+        {
+            PlacementError = "Placement impossible : le navire dépasse de la grille ou chevauche un autre bâtiment.";
+            return Task.CompletedTask;
+        }
+
+        // Valid placement
+        PlacedShips.RemoveAll(s => s.ShipType == CurrentShipType);
+        PlacedShips.Add(new ShipPlacementDto(CurrentShipType, coordinate.Row, coordinate.Col, PlacementDirection));
+        PlacementError = null;
+
+        // Auto-select the next unplaced ship type
+        var nextShip = AllShipTypes.FirstOrDefault(type => PlacedShips.All(p => p.ShipType != type));
+        if (PlacedShips.Count < 5 && nextShip != default)
+        {
+            CurrentShipType = nextShip;
+        }
+
+        UpdatePlacementPreview(coordinate);
+        return Task.CompletedTask;
+    }
+
+    private IReadOnlyList<CellDto> BuildPlacementCells()
+    {
+        var cells = Enumerable.Range(0, 100)
+            .Select(index => new CellDto(index / 10, index % 10, CellState.Empty))
+            .ToList();
+
+        foreach (var placement in PlacedShips)
+        {
+            var ship = new Ship(placement.ShipType, new Coordinate(placement.Row, placement.Col), placement.Direction);
+            foreach (var coordinate in ship.OccupiedCoordinates)
+            {
+                if (coordinate.Row >= 0 && coordinate.Row < 10 && coordinate.Col >= 0 && coordinate.Col < 10)
+                {
+                    cells[coordinate.Row * 10 + coordinate.Col] = new CellDto(
+                        coordinate.Row, coordinate.Col, CellState.Ship, placement.ShipType);
+                }
+            }
+        }
+        return cells;
     }
 
     private async Task OnOpponentCellSelectedAsync(Coordinate coordinate)
@@ -336,7 +656,6 @@
             return;
         }
 
-        // Check if cell has already been targeted
         var cell = Game.OpponentGrid.FirstOrDefault(c => c.Row == coordinate.Row && c.Col == coordinate.Col);
         if (cell != null && cell.State is CellState.Hit or CellState.Miss or CellState.Sunk)
         {
@@ -361,7 +680,6 @@
                 target.Row,
                 target.Col);
 
-            // Record shot log
             ShotLogs.Add(new ShotLogPanel.ShotLogItem(
                 nextLogId++,
                 ShotLogPanel.ShotActor.Player,

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using BattleShip.App.Services;
+using BattleShip.Models.DTOs;
 using BattleShip.Models.Enums;
 
 namespace BattleShip.Tests.Frontend;
@@ -26,6 +27,27 @@ public sealed class GameApiClientTests
         var body = await handler.Request!.Content!.ReadAsStringAsync();
         using var json = JsonDocument.Parse(body);
         Assert.Empty(json.RootElement.EnumerateObject());
+    }
+
+    [Fact]
+    public async Task CreateGameAsync_WithCustomShips_ShouldPostShips()
+    {
+        var gameId = Guid.NewGuid();
+        var handler = new RecordingHandler(
+            HttpStatusCode.Created,
+            $$"""{"gameId":"{{gameId}}"}""");
+        using var client = CreateClient(handler);
+        var gameApi = new GameApiClient(client);
+
+        var request = new CreateGameRequest(
+        [
+            new(ShipType.Carrier, 0, 0, Direction.Horizontal)
+        ]);
+        var result = await gameApi.CreateGameAsync(request);
+
+        Assert.Equal(gameId, result);
+        var body = await handler.Request!.Content!.ReadAsStringAsync();
+        Assert.Contains("Carrier", body);
     }
 
     [Fact]

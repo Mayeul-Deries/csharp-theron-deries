@@ -95,6 +95,31 @@ public sealed class HomeTests : BunitContext
         Assert.Equal(1, api.TakeShotCallCount);
     }
 
+    [Fact]
+    public async Task ManualPlacement_RandomizeAndLaunch_ShouldSendPlacedShips()
+    {
+        var gameId = Guid.NewGuid();
+        var api = new FakeGameApiClient(gameId, CreateStatus(gameId, GameState.PlayerTurn));
+        Services.AddSingleton<IGameApiClient>(api);
+        Services.AddSingleton<IOpponentGrpcClient>(new FakeOpponentGrpcClient());
+
+        var page = Render<Home>();
+
+        var randomButton = page.FindAll("button.btn-dock-action")
+            .First(b => b.TextContent.Contains("Aléatoire"));
+        await randomButton.ClickAsync();
+
+        Assert.Contains("5 / 5", page.Markup);
+
+        var launchButton = page.Find("button.btn-launch-battle");
+        await launchButton.ClickAsync();
+
+        Assert.NotNull(api.LastCreateRequest);
+        Assert.NotNull(api.LastCreateRequest.Ships);
+        Assert.Equal(5, api.LastCreateRequest.Ships.Count);
+        Assert.Equal(200, page.FindAll(".battle-cell").Count);
+    }
+
     private static GameStatusDto CreateStatus(Guid gameId, GameState state) =>
         new(gameId, state, CreateCells(CellState.Ship), CreateCells(CellState.Empty));
 
@@ -111,9 +136,15 @@ public sealed class HomeTests : BunitContext
 
         public int GetGameCallCount { get; private set; }
         public int TakeShotCallCount { get; private set; }
+        public CreateGameRequest? LastCreateRequest { get; private set; }
 
-        public Task<Guid> CreateGameAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(gameId);
+        public Task<Guid> CreateGameAsync(
+            CreateGameRequest? request = null,
+            CancellationToken cancellationToken = default)
+        {
+            LastCreateRequest = request;
+            return Task.FromResult(gameId);
+        }
 
         public Task<GameStatusDto> GetGameAsync(
             Guid requestedGameId,

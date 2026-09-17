@@ -8,7 +8,9 @@ namespace BattleShip.App.Services;
 /// </summary>
 public interface IGameApiClient
 {
-    Task<Guid> CreateGameAsync(CancellationToken cancellationToken = default);
+    Task<Guid> CreateGameAsync(
+        CreateGameRequest? request = null,
+        CancellationToken cancellationToken = default);
 
     Task<GameStatusDto> GetGameAsync(
         Guid gameId,

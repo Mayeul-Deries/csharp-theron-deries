@@ -43,6 +43,18 @@
     public Coordinate? SelectedCoordinate { get; set; }
 
     [Parameter]
+    public IReadOnlySet<Coordinate>? PreviewCoordinates { get; set; }
+
+    [Parameter]
+    public bool IsPreviewValid { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<Coordinate> CellHovered { get; set; }
+
+    [Parameter]
+    public EventCallback CellUnhovered { get; set; }
+
+    [Parameter]
     public bool IsInteractive { get; set; } = true;
 
     [Parameter]
@@ -76,6 +88,11 @@
             classes.Add("cell-selected");
         }
 
+        if (PreviewCoordinates != null && PreviewCoordinates.Contains(new Coordinate(cell.Row, cell.Col)))
+        {
+            classes.Add(IsPreviewValid ? "cell-preview-valid" : "cell-preview-invalid");
+        }
+
         return string.Join(" ", classes);
     }
 
@@ -90,6 +107,26 @@
         }
 
         return CellSelected.InvokeAsync(new Coordinate(cell.Row, cell.Col));
+    }
+
+    private Task OnMouseEnterAsync(CellDto cell)
+    {
+        if (IsDisabled || !IsInteractive)
+        {
+            return Task.CompletedTask;
+        }
+
+        return CellHovered.InvokeAsync(new Coordinate(cell.Row, cell.Col));
+    }
+
+    private Task OnMouseLeaveAsync()
+    {
+        if (IsDisabled || !IsInteractive)
+        {
+            return Task.CompletedTask;
+        }
+
+        return CellUnhovered.InvokeAsync();
     }
 
     private static string GetShipBadge(ShipType? type) => type?.ToString() switch
@@ -113,7 +150,9 @@
                 aria-label="@GetCellLabel(cell)"
                 role="gridcell"
                 disabled="@(IsDisabled || !IsInteractive)"
-                @onclick="() => SelectCellAsync(cell)">
+                @onclick="() => SelectCellAsync(cell)"
+                @onmouseenter="() => OnMouseEnterAsync(cell)"
+                @onmouseleave="OnMouseLeaveAsync">
             @if (cell.State == CellState.Hit)
             {
                 <span class="hit-icon" aria-hidden="true">✕</span>

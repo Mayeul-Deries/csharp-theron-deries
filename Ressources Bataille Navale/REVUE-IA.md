@@ -88,3 +88,40 @@ Acceptée. L'interface offre désormais un niveau de finition et une expérience
 **Preuves et limites**  
 Commits `c3a621e`, `12e4daa`, `BattleShip.Tests/Frontend/BattleGridTests.cs`, `BattleShip.Tests/Frontend/HomeTests.cs`. Limites : les animations sonores ou de torpille 3D restent des pistes ultérieures non implémentées.
 
+## Revue : Placement manuel des navires & tir direct
+
+**Proposition examinée**  
+1. Tir direct sans étape de confirmation et suppression de l'effet d'oscillation/zoom.
+2. Écran interactif de déploiement de flotte au début de la partie :
+   - Sélection du navire dans un dock dédié, orientation horizontale/verticale, survol visuel sur la grille avec codes couleur (cyan/rouge), placement au clic, retrait au clic.
+   - Boutons utilitaires de pré-remplissage aléatoire et réinitialisation.
+   - Contrat DTO `CreateGameRequest` et `ShipPlacementDto` avec conversion d'énumération robuste (`JsonStringEnumConverter`).
+   - Méthode de validation de grille `GameEngine.TrySetupPlayerShips` et validateur d'API FluentValidation `CreateGameRequestValidator`.
+
+**Hypothèse à vérifier**  
+1. La rétrocompatibilité de `POST /games` est préservée pour les clients ou tests ne fournissant pas de corps JSON (`{}`).
+2. La validation serveur rejette tout chevauchement, tout navire hors limites ou toute composition ne comportant pas exactement les 5 types requis.
+3. Le tir direct fonctionne sans secousse graphique et sans bouton intermédiaire.
+4. L'intégralité des 54 tests unitaires et bUnit reste verte.
+
+**Expérience**  
+1. Exécution des tests automatisés : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`.
+2. Scénario de bout en bout exécuté dans le navigateur avec `browser_subagent` :
+   - Initialisation sur l'écran de déploiement.
+   - Test du placement aléatoire automatique (`5 / 5 prêts`).
+   - Lancement du combat sans erreur.
+   - Tir direct immédiat sur le radar adverse et riposte IA.
+   - Retour au déploiement via « Recommencer ».
+   - Changement d'orientation en verticale et placement manuel réussi d'un navire.
+
+**Observation**  
+54 tests réussis (0 échec). Aucune erreur réseau ou JSON côté API (les converters enum gèrent les chaînes et entiers). L'interface reste stable et réactive à chaque interaction.
+
+**Décision et justification**  
+Acceptée. La fonctionnalité répond parfaitement au besoin utilisateur, respecte la séparation des couches Clean Architecture (DTOs dans `Models`, logique d'intégrité dans `Domain`, validation dans `API`, rendu dans `App`), et élève la note globale du projet.
+
+**Preuves et limites**  
+- `CreateGameRequest.cs`, `CreateGameRequestValidator.cs`, `GameEngine.cs`, `Home.razor`, `BattleGrid.razor`.
+- Tests unitaires `EngineTests.cs`, `ValidatorTests.cs`, `HomeTests.cs`, `GameApiClientTests.cs`.
+- Enregistrement de session : `fleet_placement_battle_test_1789654820026.webp`.
+

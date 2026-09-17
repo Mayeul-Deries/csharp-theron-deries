@@ -48,3 +48,35 @@
 
 **Preuve** : Commits `c3a621e`, `12e4daa`, enregistrement vidéo navigateur `tactical_ui_test_1789638490429.webp`, et revue dans `REVUE-IA.md`.
 
+## 2026-09-17 — Validation directe du tir au clic et stabilisation visuelle
+
+**Outil / modèle** : Antigravity, Gemini.
+
+**Contexte** : Après la mise en place du skin tactique, le joueur demande de supprimer l'étape de sélection préalable / bouton de confirmation pour valider le tir immédiatement au clic, et de corriger l'effet de zoom/dézoom oscillant provoqué par l'animation CSS `reticle-pulse`.
+
+**Prompt** : « Je ne veux pas de confirmation lors du clic d'une case, je veux que ca valide directe »
+
+**Réponse résumée** : Retrait du bouton de confirmation et de l'état intermédiaire dans `Home.razor`, déclenchement immédiat de `FireShotAsync` au clic, élimination de `animation: reticle-pulse` et des crochets textuels `[ ⊙ ]` pour garantir un layout shift nul.
+
+**Décision** : Acceptée. Améliore fortement la réactivité du gameplay.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Enregistrement de session navigateur `direct_shot_test_1789647690777.webp`.
+
+**Preuve** : Commit `92c0be1`, tests bUnit validant le déclenchement immédiat.
+
+## 2026-09-17 — Placement manuel des navires par le joueur au début de partie
+
+**Outil / modèle** : Antigravity, Gemini.
+
+**Contexte** : Permettre au joueur de positionner manuellement ses 5 navires au lancement du jeu ou au redémarrage, avec choix d'orientation, prévisualisation interactive, dock de flotte, options aléatoires rapides et validation d'intégrité côté serveur.
+
+**Prompt** : « il faudrait faire en sorte que le joueur puisse placer ses bateaux au début de la partie »
+
+**Réponse résumée** : Création d'un plan d'implémentation complet approuvé par l'utilisateur. Modélisation de `CreateGameRequest` et `ShipPlacementDto` avec sérialisation enum `JsonStringEnumConverter`. Ajout de `TrySetupPlayerShips` dans `GameEngine` et validateur FluentValidation `CreateGameRequestValidator`. Écran interactif de déploiement dans `Home.razor` avec survol en cyan/rouge, toggle d'orientation, placement aléatoire et réinitialisation. Couverture de tests à 54 tests au vert.
+
+**Décision** : Acceptée. Offre une expérience stratégique complète au joueur avant le combat.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj` (54 réussis). Enregistrement vidéo navigateur `fleet_placement_battle_test_1789654820026.webp` et capture `final_game_state_1789655157917.png`.
+
+**Preuve** : `CreateGameRequest.cs`, `CreateGameRequestValidator.cs`, `GameEngine.cs`, `Home.razor`, tests unitaires et bUnit.
+

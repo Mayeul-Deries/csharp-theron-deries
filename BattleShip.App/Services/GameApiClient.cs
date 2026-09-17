@@ -23,11 +23,14 @@ public sealed class GameApiClient : IGameApiClient
         this.httpClient = httpClient;
     }
 
-    public async Task<Guid> CreateGameAsync(CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateGameAsync(
+        CreateGameRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
+        object requestBody = request?.Ships is not null ? request : new { };
         using var response = await httpClient.PostAsJsonAsync(
             "games",
-            new { },
+            requestBody,
             JsonOptions,
             cancellationToken);
 
