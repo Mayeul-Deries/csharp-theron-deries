@@ -18,6 +18,26 @@ public class GameEngine
     public void SetupPlayerGridWithRandomShips() => PlaceRandomShips(PlayerGrid);
     public void SetupOpponentGridWithRandomShips() => PlaceRandomShips(OpponentGrid);
 
+    public bool TrySetupPlayerShips(IEnumerable<Ship> ships)
+    {
+        var selectedShips = ships.ToList();
+        if (selectedShips.Count != Enum.GetValues<ShipType>().Length)
+            return false;
+
+        var expectedTypes = Enum.GetValues<ShipType>().ToHashSet();
+        if (selectedShips.Select(ship => ship.Type).ToHashSet().Count != expectedTypes.Count
+            || !selectedShips.All(ship => expectedTypes.Contains(ship.Type)))
+            return false;
+
+        var grid = new Grid();
+        if (!selectedShips.All(grid.TryAddShip))
+            return false;
+
+        PlayerGrid.Ships.Clear();
+        PlayerGrid.Ships.AddRange(grid.Ships);
+        return true;
+    }
+
     private static void PlaceDefaultShips(Grid grid)
     {
         grid.TryAddShip(new Ship(ShipType.Carrier, new Coordinate(0, 0), Direction.Horizontal));

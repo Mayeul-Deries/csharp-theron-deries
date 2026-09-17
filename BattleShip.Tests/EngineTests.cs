@@ -263,4 +263,41 @@ public class EngineTests
             engine.TakeOpponentShot(new Coordinate(0, 0)));
     }
 
-}
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldAcceptValidManualFleet()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Vertical),
+            new(ShipType.Battleship, new Coordinate(0, 2), Direction.Vertical),
+            new(ShipType.Destroyer, new Coordinate(0, 4), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 6), Direction.Vertical),
+            new(ShipType.TorpedoBoat, new Coordinate(0, 8), Direction.Vertical)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.True(result);
+        Assert.Equal(5, engine.PlayerGrid.Ships.Count);
+    }
+
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldRejectOverlappingFleet()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Horizontal),
+            new(ShipType.Battleship, new Coordinate(0, 1), Direction.Vertical),
+            new(ShipType.Destroyer, new Coordinate(2, 0), Direction.Horizontal),
+            new(ShipType.Submarine, new Coordinate(3, 0), Direction.Horizontal),
+            new(ShipType.TorpedoBoat, new Coordinate(4, 0), Direction.Horizontal)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.False(result);
+        Assert.Empty(engine.PlayerGrid.Ships);
+    }
+}

@@ -14,6 +14,11 @@ builder.Services.AddGrpc();
 builder.Services.AddSingleton<GameStore>();
 builder.Services.AddSingleton<AiOpponentService>();
 builder.Services.AddSingleton<IValidator<ShotRequest>, ShotRequestValidator>();
+builder.Services.AddSingleton<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
@@ -23,10 +28,27 @@ app.UseCors();
 app.UseGrpcWeb();
 app.MapGrpcService<GameGrpcService>().EnableGrpcWeb();
 
-app.MapPost("/games", (GameStore store) =>
+app.MapPost("/games", async (
+    CreateGameRequest? request,
+    GameStore store,
+    IValidator<CreateGameRequest> validator) =>
 {
-    var (id, _) = store.Create();
-    return Results.Created($"/games/{id}", new { GameId = id });
+    if (request?.Ships is not null)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return Results.ValidationProblem(validation.ToDictionary());
+    }
+
+    try
+    {
+        var (id, _) = store.Create(request?.Ships);
+        return Results.Created($"/games/{id}", new { GameId = id });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.BadRequest(new { Error = exception.Message });
+    }
 });
 
 app.MapGet("/games/{gameId:guid}", (Guid gameId, GameStore store) =>
