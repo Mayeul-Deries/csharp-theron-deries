@@ -1,17 +1,34 @@
 @using BattleShip.Models.DTOs
 @using BattleShip.Models.Domain
+@using BattleShip.Models.Enums
 
-<div class="battle-grid" role="grid">
-    @foreach (var cell in Cells)
+<div class="battle-grid battle-grid-tactical" role="grid">
+    @if (Cells.Count == 100)
     {
-        <button type="button"
-                class="battle-cell cell-@cell.State.ToString().ToLowerInvariant()"
-                aria-label="@GetCellLabel(cell)"
-                role="gridcell"
-                disabled="@(IsDisabled || !IsInteractive)"
-                @onclick="() => SelectCellAsync(cell)">
-            @cell.State
-        </button>
+        <div class="grid-axis-corner" aria-hidden="true">LOC</div>
+        @for (int c = 0; c < 10; c++)
+        {
+            <div class="grid-axis-col" aria-hidden="true">@((char)('A' + c))</div>
+        }
+        @for (int r = 0; r < 10; r++)
+        {
+            <div class="grid-axis-row" aria-hidden="true">@($"{r + 1:D2}")</div>
+            @for (int c = 0; c < 10; c++)
+            {
+                var cell = GetCell(r, c);
+                if (cell != null)
+                {
+                    @RenderCell(cell)
+                }
+            }
+        }
+    }
+    else
+    {
+        @foreach (var cell in Cells)
+        {
+            @RenderCell(cell)
+        }
     }
 </div>
 
@@ -23,10 +40,44 @@
     public EventCallback<Coordinate> CellSelected { get; set; }
 
     [Parameter]
+    public Coordinate? SelectedCoordinate { get; set; }
+
+    [Parameter]
     public bool IsInteractive { get; set; } = true;
 
     [Parameter]
     public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public bool IsPlayerFleet { get; set; }
+
+    private CellDto? GetCell(int r, int c)
+    {
+        int index = r * 10 + c;
+        if (index >= 0 && index < Cells.Count && Cells[index].Row == r && Cells[index].Col == c)
+        {
+            return Cells[index];
+        }
+        return Cells.FirstOrDefault(cell => cell.Row == r && cell.Col == c);
+    }
+
+    private string GetCellCssClass(CellDto cell)
+    {
+        var classes = new List<string>
+        {
+            "battle-cell",
+            $"cell-{cell.State.ToString().ToLowerInvariant()}"
+        };
+
+        if (SelectedCoordinate.HasValue &&
+            SelectedCoordinate.Value.Row == cell.Row &&
+            SelectedCoordinate.Value.Col == cell.Col)
+        {
+            classes.Add("cell-selected");
+        }
+
+        return string.Join(" ", classes);
+    }
 
     private static string GetCellLabel(CellDto cell) =>
         $"Ligne {cell.Row + 1}, colonne {cell.Col + 1}, état {cell.State}";
@@ -40,4 +91,57 @@
 
         return CellSelected.InvokeAsync(new Coordinate(cell.Row, cell.Col));
     }
+
+    private static string GetShipBadge(ShipType? type) => type?.ToString() switch
+    {
+        nameof(ShipType.Carrier) => "CV",
+        nameof(ShipType.Battleship) => "BB",
+        nameof(ShipType.Destroyer) => "CA",
+        nameof(ShipType.Submarine) => "SS",
+        nameof(ShipType.TorpedoBoat) => "TB",
+        _ => ""
+    };
+
+    private RenderFragment RenderCell(CellDto cell) => __builder =>
+    {
+        bool isSelected = SelectedCoordinate.HasValue &&
+                          SelectedCoordinate.Value.Row == cell.Row &&
+                          SelectedCoordinate.Value.Col == cell.Col;
+
+        <button type="button"
+                class="@GetCellCssClass(cell)"
+                aria-label="@GetCellLabel(cell)"
+                role="gridcell"
+                disabled="@(IsDisabled || !IsInteractive)"
+                @onclick="() => SelectCellAsync(cell)">
+            @if (isSelected)
+            {
+                <span class="reticle-bracket" aria-hidden="true">[ ⊙ ]</span>
+            }
+            else if (cell.State == CellState.Hit)
+            {
+                <span class="hit-icon" aria-hidden="true">✕</span>
+            }
+            else if (cell.State == CellState.Sunk)
+            {
+                <span class="sunk-icon" aria-hidden="true">✕</span>
+            }
+            else if (cell.State == CellState.Miss)
+            {
+                <span class="miss-dot" aria-hidden="true"></span>
+            }
+            else if (cell.State == CellState.Ship && IsPlayerFleet)
+            {
+                var badge = GetShipBadge(cell.ShipType);
+                if (!string.IsNullOrEmpty(badge))
+                {
+                    <span class="ship-badge" aria-hidden="true">@badge</span>
+                }
+                else
+                {
+                    <span class="ship-dot" aria-hidden="true"></span>
+                }
+            }
+        </button>
+    };
 }

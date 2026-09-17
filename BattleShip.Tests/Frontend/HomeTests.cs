@@ -41,7 +41,8 @@ public sealed class HomeTests : BunitContext
         var page = Render<Home>();
         await page.Find("button.btn-primary").ClickAsync();
         page.WaitForAssertion(() => Assert.Equal(200, page.FindAll(".battle-cell").Count));
-        await page.FindAll(".battle-cell")[100].ClickAsync();
+        await page.FindAll(".battle-cell")[0].ClickAsync();
+        await page.Find("button.btn-fire").ClickAsync();
 
         page.WaitForAssertion(() =>
         {
@@ -68,7 +69,8 @@ public sealed class HomeTests : BunitContext
 
         var page = Render<Home>();
         await page.Find("button.btn-primary").ClickAsync();
-        await page.FindAll(".battle-cell")[100].ClickAsync();
+        await page.FindAll(".battle-cell")[0].ClickAsync();
+        await page.Find("button.btn-fire").ClickAsync();
 
         page.WaitForAssertion(() =>
         {
@@ -76,6 +78,25 @@ public sealed class HomeTests : BunitContext
             Assert.Contains("Tir de l'IA : Hit", page.Markup);
             Assert.Contains("À vous de jouer", page.Markup);
         });
+    }
+
+    [Fact]
+    public async Task SelectingCell_ShouldUpdateTargetCoordinate_AndEnableFireButton()
+    {
+        var gameId = Guid.NewGuid();
+        var api = new FakeGameApiClient(gameId, CreateStatus(gameId, GameState.PlayerTurn));
+        Services.AddSingleton<IGameApiClient>(api);
+        Services.AddSingleton<IOpponentGrpcClient>(new FakeOpponentGrpcClient());
+
+        var page = Render<Home>();
+        await page.Find("button.btn-primary").ClickAsync();
+
+        Assert.True(page.Find("button.btn-fire").HasAttribute("disabled"));
+
+        await page.FindAll(".battle-cell")[0].ClickAsync();
+
+        Assert.Contains("A-01", page.Markup);
+        Assert.False(page.Find("button.btn-fire").HasAttribute("disabled"));
     }
 
     private static GameStatusDto CreateStatus(Guid gameId, GameState state) =>

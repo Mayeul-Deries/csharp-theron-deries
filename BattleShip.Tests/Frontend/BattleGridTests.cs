@@ -124,4 +124,44 @@ public class BattleGridTests : BunitContext
         var label = renderedGrid.Find("button").GetAttribute("aria-label");
         Assert.Equal("Ligne 3, colonne 4, état Hit", label);
     }
+
+    [Fact]
+    public void Render_With100Cells_ShouldDisplayTacticalAxes()
+    {
+        var cells = Enumerable.Range(0, 100)
+            .Select(index => new CellDto(index / 10, index % 10, CellState.Empty))
+            .ToList();
+
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells));
+
+        Assert.Equal("LOC", renderedGrid.Find(".grid-axis-corner").TextContent.Trim());
+        Assert.Equal(10, renderedGrid.FindAll(".grid-axis-col").Count);
+        Assert.Equal(10, renderedGrid.FindAll(".grid-axis-row").Count);
+    }
+
+    [Fact]
+    public void Render_WithSelectedCoordinate_ShouldAddCellSelectedClass()
+    {
+        var cells = new[] { new CellDto(2, 3, CellState.Empty) };
+
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells)
+            .Add(component => component.SelectedCoordinate, new Coordinate(2, 3)));
+
+        Assert.Contains("cell-selected", renderedGrid.Find("button").ClassList);
+        Assert.Contains("[ ⊙ ]", renderedGrid.Find("button").TextContent);
+    }
+
+    [Fact]
+    public void Render_PlayerFleet_ShouldDisplayShipBadge()
+    {
+        var cells = new[] { new CellDto(0, 0, CellState.Ship, ShipType.Carrier) };
+
+        var renderedGrid = Render<BattleGrid>(parameters => parameters
+            .Add(component => component.Cells, cells)
+            .Add(component => component.IsPlayerFleet, true));
+
+        Assert.Contains("CV", renderedGrid.Find("button").TextContent);
+    }
 }

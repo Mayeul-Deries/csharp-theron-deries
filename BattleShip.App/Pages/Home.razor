@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using System.Net.Http
 @using BattleShip.App.Components
 @using BattleShip.App.Services
@@ -8,30 +8,57 @@
 @inject IGameApiClient GameApi
 @inject IOpponentGrpcClient OpponentGrpc
 
-<PageTitle>Bataille navale</PageTitle>
+<PageTitle>Bataille Navale - Tactical Command</PageTitle>
 
-<main class="game-page">
-    <header class="game-header">
-        <div>
-            <p class="eyebrow">Bataille navale</p>
-            <h1>Affrontez l'IA</h1>
+<header class="top-bar">
+    <div class="brand-section">
+        <div class="brand-icon-wrapper" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
         </div>
-        <button class="btn btn-primary" @onclick="StartGameAsync" disabled="@IsBusy">
-            @(Game is null ? "Nouvelle partie" : "Recommencer")
-        </button>
-    </header>
+        <h1 class="brand-title">Bataille Navale</h1>
+    </div>
 
+    <div class="turn-pill @TurnPillClass" role="status" aria-live="polite">
+        @if (IsOpponentThinking)
+        {
+            <span class="pill-spinner" aria-hidden="true"></span>
+        }
+        else
+        {
+            <span class="pill-dot" aria-hidden="true"></span>
+        }
+        <span>@TurnStatusText</span>
+    </div>
+
+    <div class="command-right">
+        <div class="command-stats" aria-label="Statistiques de tir">
+            <span>Tirs : <strong class="stat-num">@PlayerShotsCount</strong></span>
+            <span class="stat-divider">|</span>
+            <span>Précision : <strong class="stat-precision">@AccuracyPercentage%</strong></span>
+        </div>
+
+        <button class="btn btn-primary btn-restart" @onclick="StartGameAsync" disabled="@IsBusy">
+            ↺ @(Game is null ? "Nouvelle partie" : "Recommencer")
+        </button>
+    </div>
+</header>
+
+<main class="dashboard-container">
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
         <div class="alert alert-danger" role="alert">@ErrorMessage</div>
     }
 
-    <section class="status-panel" aria-live="polite" aria-busy="@IsBusy">
-        <strong>@StatusLabel</strong>
-        @if (IsOpponentThinking)
-        {
-            <span class="turn-indicator"><span class="turn-spinner" aria-hidden="true"></span>L'IA réfléchit...</span>
-        }
+    <!-- Hidden compatibility text for screen readers and bUnit assertions -->
+    <div class="visually-hidden" aria-live="polite">
+        <span>@TurnStatusText</span>
         @if (LastShotResult is not null)
         {
             <span>Dernier tir : @LastShotResult</span>
@@ -40,70 +67,252 @@
         {
             <span>Tir de l'IA : @LastOpponentShotResult</span>
         }
-    </section>
+    </div>
 
     @if (Game?.State == GameState.PlayerWon)
     {
-        <div class="game-result game-result-win" role="status">
-            Victoire ! Vous avez coulé toute la flotte adverse.
+        <div class="result-banner result-banner-win" role="status">
+            <span>🏆</span>
+            <span>Victoire ! Vous avez coulé toute la flotte ennemie.</span>
         </div>
     }
     else if (Game?.State == GameState.OpponentWon)
     {
-        <div class="game-result game-result-loss" role="status">
-            Défaite. La flotte adverse restante est révélée.
+        <div class="result-banner result-banner-loss" role="status">
+            <span>⚠️</span>
+            <span>Défaite. La flotte adverse restante a été détectée et révélée.</span>
         </div>
     }
 
     @if (Game is null)
     {
-        <section class="empty-state">
-            <p>Créez une partie pour afficher les grilles.</p>
-        </section>
+        <div class="tactical-card" style="padding: 4rem 2rem; text-align: center; align-items: center; gap: 1.5rem;">
+            <div class="brand-icon-wrapper" style="width: 64px; height: 64px;">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </div>
+            <div>
+                <h2 style="margin: 0 0 0.5rem 0; font-size: 1.5rem; letter-spacing: 1px; text-transform: uppercase;">
+                    Centre de Commandement Tactique
+                </h2>
+                <p style="margin: 0; color: var(--text-secondary); font-family: var(--font-mono);">
+                    Initialisez la liaison satellite pour engager l'affrontement contre l'IA navale.
+                </p>
+            </div>
+            <button class="btn btn-primary btn-restart" style="padding: 0.75rem 2rem; font-size: 1rem;" @onclick="StartGameAsync">
+                Initialiser la partie
+            </button>
+        </div>
     }
     else
     {
-        <div class="boards">
-            <section class="board-panel">
-                <h2>Votre flotte</h2>
-                <BattleGrid Cells="@Game.PlayerGrid" IsInteractive="false" />
+        <!-- ARENA GRIDS (Top Row) -->
+        <div class="arena-row">
+            <!-- RADAR ENNEMI -->
+            <section class="tactical-card" aria-label="Radar Ennemi">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="radar-dot" aria-hidden="true"></span>
+                        <span>Radar Ennemi</span>
+                    </div>
+                    <span class="card-header-meta">
+                        Cible : <strong class="meta-cyan">@(SelectedCoordinateFormatted ?? "--")</strong>
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <div class="tactical-grid-wrapper">
+                        <BattleGrid
+                            Cells="@Game.OpponentGrid"
+                            SelectedCoordinate="@SelectedCoordinate"
+                            IsInteractive="@(Game.State == GameState.PlayerTurn)"
+                            IsDisabled="@IsBusy"
+                            CellSelected="OnOpponentCellSelectedAsync" />
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div>
+                        Coordonnée sélectionnée :
+                        <strong class="meta-cyan">@(SelectedCoordinateFormatted ?? "Aucune")</strong>
+                    </div>
+
+                    <button type="button"
+                            class="btn-fire"
+                            disabled="@(!CanFire)"
+                            @onclick="FireSelectedShotAsync">
+                        @(SelectedCoordinate.HasValue ? $"Tirer sur {SelectedCoordinateFormatted}" : "Sélectionner une cible")
+                    </button>
+                </div>
             </section>
 
-            <section class="board-panel">
-                <h2>Grille adverse</h2>
-                <BattleGrid
-                    Cells="@Game.OpponentGrid"
-                    IsInteractive="@(Game.State == GameState.PlayerTurn)"
-                    IsDisabled="@IsBusy"
-                    CellSelected="TakeShotAsync" />
-                @if (Game.State == GameState.OpponentTurn)
-                {
-                    <p class="board-hint">
-                        @(IsOpponentThinking ? "La grille est verrouillée pendant le tour de l'IA." : "Tour de l'IA")
-                    </p>
-                }
+            <!-- VOTRE FLOTTE -->
+            <section class="tactical-card" aria-label="Votre Flotte">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="fleet-dot" aria-hidden="true"></span>
+                        <span>Votre Flotte</span>
+                    </div>
+                    <span class="card-header-meta">
+                        Intégrité : <strong class="meta-emerald">@PlayerFleetIntegrity%</strong>
+                    </span>
+                </div>
+
+                <div class="card-body">
+                    <div class="tactical-grid-wrapper">
+                        <BattleGrid
+                            Cells="@Game.PlayerGrid"
+                            IsInteractive="false"
+                            IsPlayerFleet="true" />
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <div class="legend-group">
+                        <span class="legend-item">
+                            <span class="legend-square legend-square-intact" aria-hidden="true"></span> Intact
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-square legend-square-hit" aria-hidden="true"></span> Touché
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot-miss" aria-hidden="true"></span> À l'eau
+                        </span>
+                    </div>
+
+                    <div>
+                        Pertes : <strong style="color: var(--text-primary);">@PlayerLossesCount / 5</strong>
+                    </div>
+                </div>
             </section>
+        </div>
+
+        <!-- FLEET STATUS & SHOT LOG (Bottom Row) -->
+        <div class="arena-row">
+            <FleetStatusPanel
+                PlayerCells="@Game.PlayerGrid"
+                OpponentCells="@Game.OpponentGrid" />
+
+            <ShotLogPanel Entries="@ShotLogs" />
         </div>
     }
 </main>
 
+<footer class="bottom-footer">
+    <span>Bataille Navale</span>
+    <div class="footer-status">
+        @if (Game is not null)
+        {
+            <span class="status-dot-active" aria-hidden="true"></span>
+            <span>@(Game.State is GameState.PlayerWon or GameState.OpponentWon ? "Partie terminée" : "Partie en cours")</span>
+        }
+        else
+        {
+            <span>En attente</span>
+        }
+    </div>
+</footer>
+
 @code {
     private GameStatusDto? Game { get; set; }
+    private Coordinate? SelectedCoordinate { get; set; }
     private ShotResult? LastShotResult { get; set; }
     private ShotResult? LastOpponentShotResult { get; set; }
     private bool IsBusy { get; set; }
     private bool IsOpponentThinking { get; set; }
     private string? ErrorMessage { get; set; }
 
-    private string StatusLabel => Game?.State switch
+    private List<ShotLogPanel.ShotLogItem> ShotLogs { get; } = [];
+    private int nextLogId = 1;
+
+    private string? SelectedCoordinateFormatted => SelectedCoordinate.HasValue
+        ? $"{(char)('A' + SelectedCoordinate.Value.Col)}-{(SelectedCoordinate.Value.Row + 1):D2}"
+        : null;
+
+    private bool CanFire => Game?.State == GameState.PlayerTurn
+                            && !IsBusy
+                            && SelectedCoordinate.HasValue;
+
+    private string TurnPillClass => Game?.State switch
+    {
+        GameState.PlayerTurn => "turn-pill-player",
+        GameState.OpponentTurn => "turn-pill-opponent",
+        GameState.PlayerWon => "turn-pill-win",
+        GameState.OpponentWon => "turn-pill-loss",
+        GameState.Setup => "turn-pill-setup",
+        _ => "turn-pill-setup"
+    };
+
+    private string TurnStatusText => Game?.State switch
     {
         GameState.PlayerTurn => "À vous de jouer",
         GameState.OpponentTurn => "Tour de l'IA",
         GameState.PlayerWon => "Victoire !",
         GameState.OpponentWon => "Défaite",
         GameState.Setup => "Préparation de la partie",
-        _ => "Aucune partie"
+        _ => "En attente"
     };
+
+    private int PlayerShotsCount => Game?.OpponentGrid
+        .Count(c => c.State is CellState.Hit or CellState.Miss or CellState.Sunk) ?? 0;
+
+    private int PlayerHitsCount => Game?.OpponentGrid
+        .Count(c => c.State is CellState.Hit or CellState.Sunk) ?? 0;
+
+    private int AccuracyPercentage
+    {
+        get
+        {
+            int total = PlayerShotsCount;
+            if (total == 0) return 0;
+            return (int)Math.Round((double)PlayerHitsCount / total * 100);
+        }
+    }
+
+    private int PlayerFleetIntegrity
+    {
+        get
+        {
+            if (Game is null) return 100;
+            int intactCells = Game.PlayerGrid.Count(c => c.State == CellState.Ship);
+            return (int)Math.Round((double)intactCells / 17.0 * 100);
+        }
+    }
+
+    private int PlayerLossesCount
+    {
+        get
+        {
+            if (Game is null) return 0;
+            var ships = new[]
+            {
+                (ShipType.Carrier, 5),
+                (ShipType.Battleship, 4),
+                (ShipType.Destroyer, 3),
+                (ShipType.Submarine, 3),
+                (ShipType.TorpedoBoat, 2)
+            };
+
+            int sunkCount = 0;
+            foreach (var (type, size) in ships)
+            {
+                int hitCount = Game.PlayerGrid
+                    .Where(c => c.ShipType?.ToString() == type.ToString())
+                    .Count(c => c.State is CellState.Hit or CellState.Sunk);
+                if (hitCount >= size)
+                {
+                    sunkCount++;
+                }
+            }
+            return sunkCount;
+        }
+    }
 
     private async Task StartGameAsync()
     {
@@ -111,25 +320,66 @@
         {
             var gameId = await GameApi.CreateGameAsync();
             Game = await GameApi.GetGameAsync(gameId);
+            SelectedCoordinate = null;
             LastShotResult = null;
             LastOpponentShotResult = null;
+            ShotLogs.Clear();
+            nextLogId = 1;
         });
     }
 
-    private async Task TakeShotAsync(Coordinate coordinate)
+    private async Task OnOpponentCellSelectedAsync(Coordinate coordinate)
     {
         if (Game is null || Game.State != GameState.PlayerTurn || IsBusy)
         {
             return;
         }
 
+        // Check if cell has already been targeted
+        var cell = Game.OpponentGrid.FirstOrDefault(c => c.Row == coordinate.Row && c.Col == coordinate.Col);
+        if (cell != null && cell.State is CellState.Hit or CellState.Miss or CellState.Sunk)
+        {
+            return;
+        }
+
+        // Double click on already selected cell fires immediately
+        if (SelectedCoordinate.HasValue &&
+            SelectedCoordinate.Value.Row == coordinate.Row &&
+            SelectedCoordinate.Value.Col == coordinate.Col)
+        {
+            await FireSelectedShotAsync();
+            return;
+        }
+
+        SelectedCoordinate = coordinate;
+    }
+
+    private async Task FireSelectedShotAsync()
+    {
+        if (!CanFire || !SelectedCoordinate.HasValue || Game is null)
+        {
+            return;
+        }
+
+        var target = SelectedCoordinate.Value;
+
         await ExecuteAsync(async () =>
         {
             LastShotResult = await GameApi.TakeShotAsync(
                 Game.GameId,
-                coordinate.Row,
-                coordinate.Col);
+                target.Row,
+                target.Col);
+
+            // Record shot log
+            ShotLogs.Add(new ShotLogPanel.ShotLogItem(
+                nextLogId++,
+                ShotLogPanel.ShotActor.Player,
+                target,
+                LastShotResult.Value
+            ));
+
             Game = await GameApi.GetGameAsync(Game.GameId);
+            SelectedCoordinate = null;
 
             if (Game.State != GameState.OpponentTurn)
             {
@@ -150,6 +400,31 @@
             {
                 var opponentShot = await OpponentGrpc.TakeOpponentShotAsync(gameId);
                 LastOpponentShotResult = opponentShot.Result;
+
+                var opponentCoord = new Coordinate(opponentShot.Row, opponentShot.Col);
+                string? hitShipName = null;
+                var playerCell = Game.PlayerGrid.FirstOrDefault(c => c.Row == opponentShot.Row && c.Col == opponentShot.Col);
+                if (playerCell?.ShipType != null)
+                {
+                    hitShipName = playerCell.ShipType?.ToString() switch
+                    {
+                        nameof(ShipType.Carrier) => "Porte-avions",
+                        nameof(ShipType.Battleship) => "Cuirassé",
+                        nameof(ShipType.Destroyer) => "Croiseur",
+                        nameof(ShipType.Submarine) => "Sous-marin",
+                        nameof(ShipType.TorpedoBoat) => "Torpilleur",
+                        _ => null
+                    };
+                }
+
+                ShotLogs.Add(new ShotLogPanel.ShotLogItem(
+                    nextLogId++,
+                    ShotLogPanel.ShotActor.Opponent,
+                    opponentCoord,
+                    opponentShot.Result,
+                    hitShipName
+                ));
+
                 Game = await GameApi.GetGameAsync(gameId);
                 await Task.Delay(350);
             }
