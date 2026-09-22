@@ -300,4 +300,23 @@ public class EngineTests
         Assert.False(result);
         Assert.Empty(engine.PlayerGrid.Ships);
     }
-}
+
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldRejectTwoSubmarinesInsteadOfDestroyer()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Vertical),
+            new(ShipType.Battleship, new Coordinate(0, 2), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 4), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 6), Direction.Vertical),
+            new(ShipType.TorpedoBoat, new Coordinate(0, 8), Direction.Vertical)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.False(result);
+    }
+}
+

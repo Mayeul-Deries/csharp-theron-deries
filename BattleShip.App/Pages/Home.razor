@@ -159,8 +159,8 @@
                         @foreach (var type in AllShipTypes)
                         {
                             var info = ShipMetadata[type];
-                            bool isPlaced = PlacedShips.Any(p => p.ShipType == type);
-                            bool isSelected = CurrentShipType == type;
+                            bool isPlaced = PlacedShips.Any(p => IsSameShip(p.ShipType, type));
+                            bool isSelected = IsSameShip(CurrentShipType, type);
 
                             <button type="button"
                                     class="dock-ship-card @(isSelected ? "active" : "") @(isPlaced ? "placed" : "")"
@@ -571,7 +571,7 @@
         }
 
         var tempGrid = new Grid();
-        foreach (var p in PlacedShips.Where(s => s.ShipType != CurrentShipType))
+        foreach (var p in PlacedShips.Where(s => !IsSameShip(s.ShipType, CurrentShipType)))
         {
             tempGrid.TryAddShip(new Ship(p.ShipType, new Coordinate(p.Row, p.Col), p.Direction));
         }
@@ -601,7 +601,7 @@
         // Try placing the current ship at this coordinate
         var candidate = new Ship(CurrentShipType, coordinate, PlacementDirection);
         var tempGrid = new Grid();
-        foreach (var p in PlacedShips.Where(s => s.ShipType != CurrentShipType))
+        foreach (var p in PlacedShips.Where(s => !IsSameShip(s.ShipType, CurrentShipType)))
         {
             tempGrid.TryAddShip(new Ship(p.ShipType, new Coordinate(p.Row, p.Col), p.Direction));
         }
@@ -613,12 +613,12 @@
         }
 
         // Valid placement
-        PlacedShips.RemoveAll(s => s.ShipType == CurrentShipType);
+        PlacedShips.RemoveAll(s => IsSameShip(s.ShipType, CurrentShipType));
         PlacedShips.Add(new ShipPlacementDto(CurrentShipType, coordinate.Row, coordinate.Col, PlacementDirection));
         PlacementError = null;
 
         // Auto-select the next unplaced ship type
-        var nextShip = AllShipTypes.FirstOrDefault(type => PlacedShips.All(p => p.ShipType != type));
+        var nextShip = AllShipTypes.FirstOrDefault(type => PlacedShips.All(p => !IsSameShip(p.ShipType, type)));
         if (PlacedShips.Count < 5 && nextShip != default)
         {
             CurrentShipType = nextShip;
@@ -627,6 +627,8 @@
         UpdatePlacementPreview(coordinate);
         return Task.CompletedTask;
     }
+
+    private static bool IsSameShip(ShipType a, ShipType b) => a.ToString() == b.ToString();
 
     private IReadOnlyList<CellDto> BuildPlacementCells()
     {

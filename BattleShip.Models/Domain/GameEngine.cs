@@ -21,12 +21,13 @@ public class GameEngine
     public bool TrySetupPlayerShips(IEnumerable<Ship> ships)
     {
         var selectedShips = ships.ToList();
-        if (selectedShips.Count != Enum.GetValues<ShipType>().Length)
+        var allShipTypes = Enum.GetValues<ShipType>().ToHashSet();
+
+        if (selectedShips.Count != allShipTypes.Count)
             return false;
 
-        var expectedTypes = Enum.GetValues<ShipType>().ToHashSet();
-        if (selectedShips.Select(ship => ship.Type).ToHashSet().Count != expectedTypes.Count
-            || !selectedShips.All(ship => expectedTypes.Contains(ship.Type)))
+        var shipTypes = selectedShips.Select(ship => ship.Type).ToHashSet();
+        if (shipTypes.Count != allShipTypes.Count || !shipTypes.SetEquals(allShipTypes))
             return false;
 
         var grid = new Grid();

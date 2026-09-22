@@ -80,3 +80,19 @@
 
 **Preuve** : `CreateGameRequest.cs`, `CreateGameRequestValidator.cs`, `GameEngine.cs`, `Home.razor`, tests unitaires et bUnit.
 
+## 2026-09-17 — Résolution de la collision d'alias d'énumération entre Sous-marin et Croiseur
+
+**Outil / modèle** : Antigravity, Gemini.
+
+**Contexte** : Lors du placement manuel de la flotte, placer un Sous-marin entraînait l'affichage simultané du Sous-marin et du Croiseur (Destroyer) comme « Placé » dans le dock, avec un compteur erroné.
+
+**Prompt** : « quand je place un sous-marin ca m'en place un mais ca note les 2 comme placés, sauf qu'en réalité j'en ai placé qu'un sur deux »
+
+**Réponse résumée** : Identification de la cause racine dans l'énumération C# `ShipType` où `Destroyer = 3` et `Submarine = 3` partageaient la même valeur entière sous-jacente, créant un alias indistinguable à l'exécution pour l'opérateur d'égalité, les collections de hachage et la réflexion. Attribution de valeurs entières distinctes uniques (`Carrier = 1`, `Battleship = 2`, `Destroyer = 3`, `Submarine = 4`, `TorpedoBoat = 5`), dissociation de la taille en cases via la méthode `Ship.GetLength()`, sécurisation de l'isolation du dock dans `Home.razor`, ajout de tests unitaires et bUnit (56 tests au total, 100% verts).
+
+**Décision** : Acceptée. Règle définitivement la collision d'alias tout en conservant les dimensions des navires (3 cases pour chacun) et le respect des règles métier.
+
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj` (56/56 réussis). Test interactif dans le navigateur avec enregistrement vidéo confirmant l'indépendance stricte du Sous-marin et du Croiseur.
+
+**Preuve** : `ShipType.cs`, `Ship.cs`, `GameEngine.cs`, `Home.razor`, `EngineTests.cs`, `HomeTests.cs`, vidéo `submarine_destroyer_fix_test_1789657015807.webp`.
+

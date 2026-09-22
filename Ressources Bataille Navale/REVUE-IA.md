@@ -125,3 +125,36 @@ Acceptée. La fonctionnalité répond parfaitement au besoin utilisateur, respec
 - Tests unitaires `EngineTests.cs`, `ValidatorTests.cs`, `HomeTests.cs`, `GameApiClientTests.cs`.
 - Enregistrement de session : `fleet_placement_battle_test_1789654820026.webp`.
 
+## Revue : Résolution du conflit d'alias d'énumération ShipType (Submarine / Destroyer)
+
+**Proposition examinée**  
+1. Réaffectation des valeurs de l'énumération `BattleShip.Models/Enums/ShipType.cs` pour donner un identifiant unique à chaque type de navire (`Carrier = 1`, `Battleship = 2`, `Destroyer = 3`, `Submarine = 4`, `TorpedoBoat = 5`).
+2. Découplage de la longueur du navire de la valeur d'énumération via `Ship.GetLength(ShipType type)` et `Ship.Length`.
+3. Validation stricte de la composition de flotte dans `GameEngine.TrySetupPlayerShips` et isolation par `ShipType` dans `Home.razor`.
+
+**Hypothèse à vérifier**  
+1. En C#, deux membres d'une énumération ayant la même valeur entière sont de simples alias (`Destroyer == Submarine` vaut `true`), ce qui causait la sélection et le marquage croisé erroné des deux cartes de taille 3.
+2. L'attribution d'identifiants uniques permet de distinguer parfaitement `Submarine` et `Destroyer` dans les collections, les liaisons Blazor et les DTOs (sérialisés en chaînes `"Submarine"`, `"Destroyer"`).
+3. La longueur en cases (3 cases pour le croiseur et 3 cases pour le sous-marin) est préservée sans régression sur les règles métier.
+
+**Expérience**  
+1. Exécution de la suite de tests complète : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`.
+2. Ajout de tests de régression dédiés :
+   - `GameEngine_TrySetupPlayerShips_ShouldRejectTwoSubmarinesInsteadOfDestroyer` dans `EngineTests.cs`.
+   - `PlacingSubmarine_ShouldNotMarkDestroyerAsPlaced` dans `HomeTests.cs`.
+3. Validation interactive de bout en bout dans le navigateur avec `browser_subagent` :
+   - Placement manuel d'un Sous-marin : seul le Sous-marin passe à `✓ Placé`, le Croiseur reste `À placer` (`1 / 5 prêts`).
+   - Placement consécutif du Croiseur : les deux passent à `✓ Placé` (`2 / 5 prêts`).
+   - Tir et combat sans encombre.
+
+**Observation**  
+56 tests réussis sur 56 (0 échec). L'interface Blazor reflète avec une précision absolue l'état réel de chaque navire sans aucune confusion d'état.
+
+**Décision et justification**  
+Acceptée. Solution canonique et robuste selon les standards du C# moderne et les principes SOLID.
+
+**Preuves et limites**  
+- `BattleShip.Models/Enums/ShipType.cs`, `BattleShip.Models/Domain/Ship.cs`, `BattleShip.Models/Domain/GameEngine.cs`, `BattleShip.App/Pages/Home.razor`.
+- `EngineTests.cs`, `HomeTests.cs`.
+- Session enregistrée : `submarine_destroyer_fix_test_1789657015807.webp`, capture : `fleet_placed_verified_1789660999854.png`.
+

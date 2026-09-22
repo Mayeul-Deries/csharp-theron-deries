@@ -120,6 +120,32 @@ public sealed class HomeTests : BunitContext
         Assert.Equal(200, page.FindAll(".battle-cell").Count);
     }
 
+    [Fact]
+    public async Task PlacingSubmarine_ShouldNotMarkDestroyerAsPlaced()
+    {
+        var gameId = Guid.NewGuid();
+        var api = new FakeGameApiClient(gameId, CreateStatus(gameId, GameState.PlayerTurn));
+        Services.AddSingleton<IGameApiClient>(api);
+        Services.AddSingleton<IOpponentGrpcClient>(new FakeOpponentGrpcClient());
+
+        var page = Render<Home>();
+
+        var subCard = page.FindAll("button.dock-ship-card")
+            .First(b => b.TextContent.Contains("Sous-marin"));
+        await subCard.ClickAsync();
+
+        await page.FindAll(".battle-cell")[0].ClickAsync();
+
+        var destroyerCard = page.FindAll("button.dock-ship-card")
+            .First(b => b.TextContent.Contains("Croiseur"));
+        var updatedSubCard = page.FindAll("button.dock-ship-card")
+            .First(b => b.TextContent.Contains("Sous-marin"));
+
+        Assert.Contains("✓ Placé", updatedSubCard.TextContent);
+        Assert.Contains("À placer", destroyerCard.TextContent);
+        Assert.Contains("1 / 5", page.Markup);
+    }
+
     private static GameStatusDto CreateStatus(Guid gameId, GameState state) =>
         new(gameId, state, CreateCells(CellState.Ship), CreateCells(CellState.Empty));
 
