@@ -24,7 +24,11 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("https://localhost:7091", "http://localhost:5282")
+        policy.WithOrigins(
+                    "http://localhost:5270",
+                    "https://localhost:7016",
+                    "https://localhost:7091",
+                    "http://localhost:5282")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding");
@@ -33,7 +37,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
 app.UseCors();
 app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
 app.MapGrpcService<GameGrpcService>().EnableGrpcWeb();
