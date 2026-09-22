@@ -1,8 +1,30 @@
+using BattleShip.API.Services;
+using BattleShip.Models.Domain;
+using BattleShip.Models.DTOs;
+using BattleShip.Models.Validators;
+using BattleShip.Models.Privacy;
+using BattleShip.Models.AI;
+using Microsoft.AspNetCore.Builder;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<InMemoryGameStore>();
+builder.Services.AddSingleton<AiOpponentService>(); // Enregistrement de l'IA
+builder.Services.AddGrpc();
+
+// Ajout des politiques CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowBlazor", policy =>
+    {
+        policy.WithOrigins("https://localhost:7091", "http://localhost:5282")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding");
+    });
+});
 
 var app = builder.Build();
 
@@ -13,29 +35,48 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowBlazor");
+app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true }); // Activation gRPC-Web
 
-var summaries = new[]
+app.MapPost("/games", (InMemoryGameStore store) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+    var gameId = Guid.NewGuid().ToString();
+    var game = new GameEngine();
+    game.SetupPlayerGridWithDefaultShips();
+    game.SetupOpponentGridWithDefaultShips();
+    game.StartGame();
+    store.SaveGame(gameId, game);
+    return Results.Created("/games/" + gameId, new { gameId });
+});
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/games/{gameId}", (string gameId, InMemoryGameStore store) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    var game = store.GetGame(gameId);
+    if (game == null) return Results.NotFound();
 
+    var dto = GamePrivacyMapper.ToStatusDto(Guid.Parse(gameId), game);
+    return Results.Ok(dto);
+});
+
+app.MapPost("/games/{gameId}/shots", (string gameId, ShotRequest request, InMemoryGameStore store) =>
+{
+    var game = store.GetGame(gameId);
+    if (game == null) return Results.NotFound();
+    
+    var validator = new ShotRequestValidator();
+    var validationResult = validator.Validate(request);
+    if (!validationResult.IsValid) return Results.BadRequest(validationResult.Errors);
+    
+    try
+    {
+        var result = game.TakeShot(new Coordinate(request.Row, request.Col));
+        return Results.Ok(new { result = result.ToString() });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(ex.Message);
+    }
+});
+
+app.MapGrpcService<BattleShip.API.Services.BattleShipGrpcService>().EnableGrpcWeb().RequireCors("AllowBlazor");
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

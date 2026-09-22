@@ -16,8 +16,13 @@ public class AiOpponentService
             return targetFromHit.Value;
         }
 
-        // 2. Sinon, tir aléatoire sur les cases non visées
-        var availableCoordinates = GetAvailableCoordinates(playerGrid);
+        // 2. Stratégie "Pari" (Checkerboard) pour optimiser la recherche aléatoire
+        var availableCoordinates = GetAvailableCoordinates(playerGrid).Where(c => (c.Row + c.Col) % 2 == 0).ToList();
+        if (availableCoordinates.Count == 0)
+        {
+            availableCoordinates = GetAvailableCoordinates(playerGrid);
+        }
+
         if (availableCoordinates.Count == 0)
         {
             throw new InvalidOperationException("Aucune case disponible pour le tir de l'IA.");
@@ -29,31 +34,31 @@ public class AiOpponentService
 
     private static Coordinate? FindTargetFromPreviousHits(Grid playerGrid)
     {
+        // On cherche les navires touchés non coulés
+        var targets = new List<Coordinate>();
+        
         foreach (var ship in playerGrid.Ships)
         {
-            var hitCoords = ship.OccupiedCoordinates
-                .Where(c => playerGrid.ShotsReceived.Contains(c))
-                .ToList();
-
-            // Si le navire est touché mais pas encore coulé
             bool isSunk = ship.OccupiedCoordinates.All(c => playerGrid.ShotsReceived.Contains(c));
-            if (hitCoords.Count > 0 && !isSunk)
+            if (isSunk) continue;
+
+            var hits = ship.OccupiedCoordinates.Where(c => playerGrid.ShotsReceived.Contains(c)).ToList();
+            if (hits.Count > 0)
             {
-                foreach (var hit in hitCoords)
+                foreach (var hit in hits)
                 {
-                    var adjacentCandidates = GetAdjacentCoordinates(hit);
-                    foreach (var candidate in adjacentCandidates)
+                    foreach (var candidate in GetAdjacentCoordinates(hit))
                     {
                         if (candidate.IsValid() && !playerGrid.ShotsReceived.Contains(candidate))
                         {
-                            return candidate;
+                            targets.Add(candidate);
                         }
                     }
                 }
             }
         }
 
-        return null;
+        return targets.Any() ? targets.First() : null;
     }
 
     private static List<Coordinate> GetAdjacentCoordinates(Coordinate coord) => new()
