@@ -131,4 +131,5 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
   - [ADR 0001 : Modélisation du domaine et intégrité de la grille](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0001-modele.md)
   - [ADR 0002 : Isolation des appels REST du frontend](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0002-client-http-frontend.md)
   - [ADR 0003 : Dédier une RPC au tir de l'adversaire](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0003-rpc-tir-adversaire.md)
+  - [ADR 0004 : Architecture de communication (REST vs gRPC-Web)](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0004-architecture-hybride.md)
 - **Fichier de requêtes HTTP manuelles** : [api.http](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/api.http)
