@@ -12,7 +12,9 @@ public static class GamePrivacyMapper
             gameId,
             engine.State,
             BuildPlayerGridCells(engine.PlayerGrid),
-            BuildOpponentGridCells(engine.OpponentGrid)
+            BuildOpponentGridCells(
+                engine.OpponentGrid,
+                engine.State == GameState.OpponentWon)
         );
     }
 
@@ -26,7 +28,8 @@ public static class GamePrivacyMapper
             for (int c = 0; c < 10; c++)
             {
                 var coord = new Coordinate(r, c);
-                bool hasShip = grid.Ships.Any(s => s.OccupiedCoordinates.Contains(coord));
+                var ship = grid.Ships.FirstOrDefault(s => s.OccupiedCoordinates.Contains(coord));
+                bool hasShip = ship is not null;
                 bool isShot = grid.ShotsReceived.Contains(coord);
 
                 CellState state = (hasShip, isShot) switch
@@ -37,14 +40,14 @@ public static class GamePrivacyMapper
                     (false, false) => CellState.Empty
                 };
 
-                cells.Add(new CellDto(r, c, state));
+                cells.Add(new CellDto(r, c, state, ship?.Type));
             }
         }
         return cells;
     }
 
     // Grille Adversaire : MASQUAGE STRICT. Les bateaux non touchés restent "Empty"
-    private static List<CellDto> BuildOpponentGridCells(Grid grid)
+    private static List<CellDto> BuildOpponentGridCells(Grid grid, bool revealShips)
     {
         var cells = new List<CellDto>();
 
@@ -53,17 +56,26 @@ public static class GamePrivacyMapper
             for (int c = 0; c < 10; c++)
             {
                 var coord = new Coordinate(r, c);
-                bool hasShip = grid.Ships.Any(s => s.OccupiedCoordinates.Contains(coord));
+                var ship = grid.Ships.FirstOrDefault(s => s.OccupiedCoordinates.Contains(coord));
+                bool hasShip = ship is not null;
                 bool isShot = grid.ShotsReceived.Contains(coord);
 
                 CellState state = (hasShip, isShot) switch
                 {
                     (true, true) => IsShipSunk(grid, coord) ? CellState.Sunk : CellState.Hit,
                     (false, true) => CellState.Miss,
-                    _ => CellState.Empty // Si pas de tir, on renvoie Empty (Masquage)
+                    (true, false) when revealShips => CellState.Ship,
+                    _ => CellState.Empty
                 };
 
-                cells.Add(new CellDto(r, c, state));
+                ShipType? exposedType = state switch
+                {
+                    CellState.Sunk => ship?.Type,
+                    CellState.Ship when revealShips => ship?.Type,
+                    _ => null
+                };
+
+                cells.Add(new CellDto(r, c, state, exposedType));
             }
         }
         return cells;

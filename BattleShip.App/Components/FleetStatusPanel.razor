@@ -1,0 +1,120 @@
+@using BattleShip.Models.DTOs
+@using BattleShip.Models.Enums
+
+<section class="tactical-card" aria-label="État de la flotte">
+    <div class="card-header">
+        <div class="card-title-group">
+            <span>État de la flotte</span>
+        </div>
+        <span class="card-header-meta">Alliés vs Ennemis</span>
+    </div>
+
+    <div class="card-body" style="padding: 1rem 1.25rem; background: var(--bg-card); align-items: stretch;">
+        <div class="fleet-table">
+            @foreach (var shipInfo in GetShipFleetInfos())
+            {
+                <div class="fleet-row">
+                    <div class="fleet-info">
+                        <span class="fleet-name @(shipInfo.PlayerSunk ? "fleet-name-sunk" : "")">
+                            @shipInfo.Name
+                        </span>
+                        <span class="fleet-desc @GetStatusClass(shipInfo)">
+                            @shipInfo.StatusText
+                        </span>
+                    </div>
+
+                    <div class="fleet-bars">
+                        <!-- Allied Segments -->
+                        <div class="segment-group" title="Alliés : @(shipInfo.Size - shipInfo.PlayerHits)/@shipInfo.Size intacts">
+                            @for (int i = 0; i < shipInfo.Size; i++)
+                            {
+                                bool isHit = i < shipInfo.PlayerHits;
+                                <div class="segment @(isHit ? "segment-allied-hit" : "segment-allied-intact")"></div>
+                            }
+                        </div>
+
+                        <span class="vs-text">vs</span>
+
+                        <!-- Enemy Segments -->
+                        <div class="segment-group" title="Ennemis : @(shipInfo.EnemyHits)/@shipInfo.Size touchés">
+                            @for (int i = 0; i < shipInfo.Size; i++)
+                            {
+                                bool isHit = i < shipInfo.EnemyHits;
+                                <div class="segment @(isHit ? "segment-enemy-hit" : "segment-enemy-intact")"></div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<CellDto> PlayerCells { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<CellDto> OpponentCells { get; set; } = [];
+
+    private record ShipFleetInfo(
+        ShipType Type,
+        string Name,
+        int Size,
+        int PlayerHits,
+        bool PlayerSunk,
+        int EnemyHits,
+        bool EnemySunk,
+        string StatusText
+    );
+
+    private string GetStatusClass(ShipFleetInfo info)
+    {
+        if (info.PlayerSunk) return "fleet-desc-sunk";
+        if (info.PlayerHits > 0) return "fleet-desc-damaged";
+        return "fleet-desc";
+    }
+
+    private IEnumerable<ShipFleetInfo> GetShipFleetInfos()
+    {
+        yield return BuildInfo(ShipType.Carrier, "Porte-avions", 5);
+        yield return BuildInfo(ShipType.Battleship, "Cuirassé", 4);
+        yield return BuildInfo(ShipType.Destroyer, "Croiseur", 3);
+        yield return BuildInfo(ShipType.Submarine, "Sous-marin", 3);
+        yield return BuildInfo(ShipType.TorpedoBoat, "Torpilleur", 2);
+    }
+
+    private ShipFleetInfo BuildInfo(ShipType type, string name, int size)
+    {
+        var playerShipCells = PlayerCells
+            .Where(c => c.ShipType?.ToString() == type.ToString())
+            .ToList();
+
+        int playerHits = playerShipCells.Count(c => c.State is CellState.Hit or CellState.Sunk);
+        bool playerSunk = playerShipCells.Count > 0 && playerHits >= size;
+
+        // Opponent side info
+        var opponentShipCells = OpponentCells
+            .Where(c => c.ShipType?.ToString() == type.ToString())
+            .ToList();
+
+        int enemyHits = opponentShipCells.Count(c => c.State is CellState.Hit or CellState.Sunk);
+        bool enemySunk = enemyHits >= size;
+
+        string statusText;
+        if (playerSunk)
+        {
+            statusText = "Coulé";
+        }
+        else if (playerHits > 0)
+        {
+            statusText = $"{size - playerHits}/{size} touché";
+        }
+        else
+        {
+            statusText = $"{size}/{size} intact";
+        }
+
+        return new ShipFleetInfo(type, name, size, playerHits, playerSunk, enemyHits, enemySunk, statusText);
+    }
+}

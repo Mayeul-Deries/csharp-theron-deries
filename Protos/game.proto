@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option csharp_namespace = "BattleShip.API.Protos";
+
+service GameService {
+  rpc CreateGame (CreateGameRequest) returns (GameResponse);
+  rpc TakeShot (ShotRequest) returns (ShotResponse);
+  rpc TakeOpponentShot (OpponentShotRequest) returns (OpponentShotResponse);
+}
+
+message CreateGameRequest {}
+
+message GameResponse {
+  string game_id = 1;
+}
+
+message ShotRequest {
+  string game_id = 1;
+  int32 row = 2;
+  int32 col = 3;
+}
+
+message ShotResponse {
+  string result = 1;
+}
+
+message OpponentShotRequest {
+  string game_id = 1;
+}
+
+message OpponentShotResponse {
+  string result = 1;
+  int32 row = 2;
+  int32 col = 3;
+}

@@ -25,4 +25,24 @@ public class PrivacyTests
         // Toutes les cases non visées doivent être marquées "Empty"
         Assert.All(dto.OpponentGrid, cell => Assert.Equal(CellState.Empty, cell.State));
     }
+
+    [Fact]
+    public void ToStatusDto_ShouldRevealRemainingOpponentShips_AfterPlayerLoss()
+    {
+        var engine = new GameEngine();
+        engine.PlayerGrid.TryAddShip(new Ship(
+            ShipType.TorpedoBoat,
+            new Coordinate(0, 0),
+            Direction.Horizontal));
+        engine.SetupOpponentGridWithDefaultShips();
+        engine.StartGame();
+        engine.TakeShot(new Coordinate(9, 9));
+        engine.TakeOpponentShot(new Coordinate(0, 0));
+        engine.TakeOpponentShot(new Coordinate(0, 1));
+
+        var dto = GamePrivacyMapper.ToStatusDto(Guid.NewGuid(), engine);
+
+        Assert.Equal(GameState.OpponentWon, dto.State);
+        Assert.Contains(dto.OpponentGrid, cell => cell.State == CellState.Ship);
+    }
 }

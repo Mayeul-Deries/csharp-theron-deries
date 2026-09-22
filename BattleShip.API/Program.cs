@@ -1,23 +1,28 @@
+using BattleShip.API.Grpc;
 using BattleShip.API.Services;
+using BattleShip.API.Validation;
+using BattleShip.Models.AI;
 using BattleShip.Models.Domain;
 using BattleShip.Models.DTOs;
-using BattleShip.Models.Validators;
 using BattleShip.Models.Privacy;
-using BattleShip.Models.AI;
-using Microsoft.AspNetCore.Builder;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddOpenApi();
-builder.Services.AddSingleton<InMemoryGameStore>();
-builder.Services.AddSingleton<AiOpponentService>(); // Enregistrement de l'IA
 builder.Services.AddGrpc();
+builder.Services.AddSingleton<GameStore>();
+builder.Services.AddSingleton<AiOpponentService>();
+builder.Services.AddSingleton<IValidator<ShotRequest>, ShotRequestValidator>();
+builder.Services.AddSingleton<IValidator<CreateGameRequest>, CreateGameRequestValidator>();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 
-// Ajout des politiques CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazor", policy =>
+    options.AddDefaultPolicy(policy =>
     {
         policy.WithOrigins("https://localhost:7091", "http://localhost:5282")
               .AllowAnyMethod()
@@ -28,55 +33,70 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
 app.UseHttpsRedirection();
-app.UseCors("AllowBlazor");
-app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true }); // Activation gRPC-Web
+app.UseCors();
+app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+app.MapGrpcService<GameGrpcService>().EnableGrpcWeb();
 
-app.MapPost("/games", (InMemoryGameStore store) =>
+app.MapPost("/games", async (
+    CreateGameRequest? request,
+    GameStore store,
+    IValidator<CreateGameRequest> validator) =>
 {
-    var gameId = Guid.NewGuid().ToString();
-    var game = new GameEngine();
-    game.SetupPlayerGridWithDefaultShips();
-    game.SetupOpponentGridWithDefaultShips();
-    game.StartGame();
-    store.SaveGame(gameId, game);
-    return Results.Created("/games/" + gameId, new { gameId });
-});
+    if (request?.Ships is not null)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return Results.ValidationProblem(validation.ToDictionary());
+    }
 
-app.MapGet("/games/{gameId}", (string gameId, InMemoryGameStore store) =>
-{
-    var game = store.GetGame(gameId);
-    if (game == null) return Results.NotFound();
-
-    var dto = GamePrivacyMapper.ToStatusDto(Guid.Parse(gameId), game);
-    return Results.Ok(dto);
-});
-
-app.MapPost("/games/{gameId}/shots", (string gameId, ShotRequest request, InMemoryGameStore store) =>
-{
-    var game = store.GetGame(gameId);
-    if (game == null) return Results.NotFound();
-    
-    var validator = new ShotRequestValidator();
-    var validationResult = validator.Validate(request);
-    if (!validationResult.IsValid) return Results.BadRequest(validationResult.Errors);
-    
     try
     {
-        var result = game.TakeShot(new Coordinate(request.Row, request.Col));
-        return Results.Ok(new { result = result.ToString() });
+        var (id, _) = store.Create(request?.Ships);
+        return Results.Created($"/games/{id}", new { GameId = id });
     }
-    catch (Exception ex)
+    catch (ArgumentException exception)
     {
-        return Results.BadRequest(ex.Message);
+        return Results.BadRequest(new { Error = exception.Message });
     }
 });
 
-app.MapGrpcService<BattleShip.API.Services.BattleShipGrpcService>().EnableGrpcWeb().RequireCors("AllowBlazor");
+app.MapGet("/games/{gameId:guid}", (Guid gameId, GameStore store) =>
+    store.TryGet(gameId, out var engine) && engine is not null
+        ? Results.Ok(GamePrivacyMapper.ToStatusDto(gameId, engine))
+        : Results.NotFound());
+
+app.MapPost("/games/{gameId:guid}/shots", async (
+    Guid gameId,
+    ShotRequest request,
+    GameStore store,
+    IValidator<ShotRequest> validator) =>
+{
+    var validation = await validator.ValidateAsync(request);
+    if (!validation.IsValid)
+        return Results.ValidationProblem(validation.ToDictionary());
+
+    if (!store.TryGet(gameId, out var engine) || engine is null)
+        return Results.NotFound();
+
+    try
+    {
+        var result = engine.TakeShot(new Coordinate(request.Row, request.Col));
+        return Results.Ok(new { Result = result });
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { Error = exception.Message });
+    }
+    catch (ArgumentOutOfRangeException exception)
+    {
+        return Results.BadRequest(new { Error = exception.Message });
+    }
+});
+
+if (app.Environment.IsDevelopment())
+    app.MapOpenApi();
+
 app.Run();
+
+public partial class Program;

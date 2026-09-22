@@ -1,0 +1,79 @@
+@using BattleShip.Models.Domain
+@using BattleShip.Models.Enums
+
+<section class="tactical-card" aria-label="Journal des tirs">
+    <div class="card-header">
+        <div class="card-title-group">
+            <span>Journal des tirs</span>
+        </div>
+        <span class="card-header-meta">Dernières actions</span>
+    </div>
+
+    <div class="card-body" style="padding: 0.75rem 1.25rem; background: var(--bg-card); align-items: stretch;">
+        @if (Entries.Count == 0)
+        {
+            <div style="display: flex; align-items: center; justify-content: center; width: 100%; color: var(--text-muted); font-size: 0.85rem; font-family: var(--font-mono); min-height: 120px;">
+                Aucun engagement enregistré.
+            </div>
+        }
+        else
+        {
+            <div class="shot-log-list" role="log" aria-live="polite">
+                @foreach (var entry in Entries.OrderByDescending(e => e.Id))
+                {
+                    <div class="shot-log-row">
+                        <div class="shot-actor">
+                            <span class="@(entry.Actor == ShotActor.Player ? "actor-dot-player" : "actor-dot-ia")" aria-hidden="true"></span>
+                            <span>
+                                @(entry.Actor == ShotActor.Player ? "Joueur" : "IA") tire en <strong class="shot-coord">@entry.FormattedCoord</strong>
+                            </span>
+                        </div>
+
+                        <div class="shot-result-label @GetResultClass(entry)">
+                            @GetResultLabel(entry)
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    public enum ShotActor
+    {
+        Player,
+        Opponent
+    }
+
+    public record ShotLogItem(
+        int Id,
+        ShotActor Actor,
+        Coordinate Coordinate,
+        ShotResult Result,
+        string? ShipName = null
+    )
+    {
+        public string FormattedCoord =>
+            $"{(char)('A' + Coordinate.Col)}-{(Coordinate.Row + 1):D2}";
+    }
+
+    [Parameter]
+    public IReadOnlyList<ShotLogItem> Entries { get; set; } = [];
+
+    private static string GetResultClass(ShotLogItem entry) => entry.Result switch
+    {
+        ShotResult.Hit or ShotResult.Sunk when entry.Actor == ShotActor.Player => "shot-result-hit-player",
+        ShotResult.Hit or ShotResult.Sunk => "shot-result-hit-ia",
+        _ => "shot-result-miss"
+    };
+
+    private static string GetResultLabel(ShotLogItem entry) => entry.Result switch
+    {
+        ShotResult.Hit when !string.IsNullOrEmpty(entry.ShipName) => $"Touché ({entry.ShipName})",
+        ShotResult.Hit => "Touché !",
+        ShotResult.Sunk when !string.IsNullOrEmpty(entry.ShipName) => $"Coulé ({entry.ShipName}) !",
+        ShotResult.Sunk => "Coulé !",
+        _ => "À l'eau"
+    };
+}

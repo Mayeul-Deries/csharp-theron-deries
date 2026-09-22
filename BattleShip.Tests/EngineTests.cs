@@ -71,6 +71,26 @@ public class EngineTests
     }
 
     [Fact]
+    public void GameEngine_SetupRandomShips_ShouldCreateValidPlayerFleet()
+    {
+        var engine = new GameEngine();
+
+        engine.SetupPlayerGridWithRandomShips();
+
+        Assert.Equal(5, engine.PlayerGrid.Ships.Count);
+        Assert.All(engine.PlayerGrid.Ships, ship =>
+        {
+            Assert.All(ship.OccupiedCoordinates, coordinate => Assert.True(coordinate.IsValid()));
+        });
+
+        var occupiedCoordinates = engine.PlayerGrid.Ships
+            .SelectMany(ship => ship.OccupiedCoordinates)
+            .ToList();
+
+        Assert.Equal(occupiedCoordinates.Count, occupiedCoordinates.Distinct().Count());
+    }
+
+    [Fact]
     public void GameEngine_TakeShot_ShouldReturnMiss_AndSwitchTurn_WhenWaterIsHit()
     {
         // Arrange
@@ -218,4 +238,85 @@ public class EngineTests
         // Act & Assert : Impossible de tirer après la victoire
         Assert.Throws<InvalidOperationException>(() => engine.TakeShot(new Coordinate(5, 5)));
     }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldReturnMiss_AndGiveTurnToPlayer()
+    {
+        var engine = new GameEngine();
+        engine.PlayerGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(0, 0), Direction.Horizontal));
+        engine.OpponentGrid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(0, 0), Direction.Horizontal));
+        engine.StartGame();
+        engine.TakeShot(new Coordinate(1, 0));
+
+        var result = engine.TakeOpponentShot(new Coordinate(9, 9));
+
+        Assert.Equal(ShotResult.Miss, result);
+        Assert.Equal(GameState.PlayerTurn, engine.State);
+    }
+
+    [Fact]
+    public void GameEngine_TakeOpponentShot_ShouldRejectCallOutsideOpponentTurn()
+    {
+        var engine = new GameEngine();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            engine.TakeOpponentShot(new Coordinate(0, 0)));
+    }
+
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldAcceptValidManualFleet()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Vertical),
+            new(ShipType.Battleship, new Coordinate(0, 2), Direction.Vertical),
+            new(ShipType.Destroyer, new Coordinate(0, 4), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 6), Direction.Vertical),
+            new(ShipType.TorpedoBoat, new Coordinate(0, 8), Direction.Vertical)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.True(result);
+        Assert.Equal(5, engine.PlayerGrid.Ships.Count);
+    }
+
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldRejectOverlappingFleet()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Horizontal),
+            new(ShipType.Battleship, new Coordinate(0, 1), Direction.Vertical),
+            new(ShipType.Destroyer, new Coordinate(2, 0), Direction.Horizontal),
+            new(ShipType.Submarine, new Coordinate(3, 0), Direction.Horizontal),
+            new(ShipType.TorpedoBoat, new Coordinate(4, 0), Direction.Horizontal)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.False(result);
+        Assert.Empty(engine.PlayerGrid.Ships);
+    }
+
+    [Fact]
+    public void GameEngine_TrySetupPlayerShips_ShouldRejectTwoSubmarinesInsteadOfDestroyer()
+    {
+        var engine = new GameEngine();
+        var ships = new List<Ship>
+        {
+            new(ShipType.Carrier, new Coordinate(0, 0), Direction.Vertical),
+            new(ShipType.Battleship, new Coordinate(0, 2), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 4), Direction.Vertical),
+            new(ShipType.Submarine, new Coordinate(0, 6), Direction.Vertical),
+            new(ShipType.TorpedoBoat, new Coordinate(0, 8), Direction.Vertical)
+        };
+
+        var result = engine.TrySetupPlayerShips(ships);
+
+        Assert.False(result);
+    }
 }
+

@@ -1,5 +1,6 @@
-using BattleShip.Models.Validators;
+using BattleShip.API.Validation;
 using BattleShip.Models.DTOs;
+using BattleShip.Models.Enums;
 using Xunit;
 
 namespace BattleShip.Tests;
@@ -19,4 +20,26 @@ public class ValidatorTests
         var result = _validator.Validate(request);
         Assert.Equal(expectedValid, result.IsValid);
     }
+
+    [Fact]
+    public void CreateGameRequestValidator_ShouldValidatePlacementsCount()
+    {
+        var validator = new CreateGameRequestValidator();
+        var valid = new CreateGameRequest(
+        [
+            new(ShipType.Carrier, 0, 0, Direction.Horizontal),
+            new(ShipType.Battleship, 1, 0, Direction.Horizontal),
+            new(ShipType.Destroyer, 2, 0, Direction.Horizontal),
+            new(ShipType.Submarine, 3, 0, Direction.Horizontal),
+            new(ShipType.TorpedoBoat, 4, 0, Direction.Horizontal)
+        ]);
+        var invalid = new CreateGameRequest(
+        [
+            new(ShipType.Carrier, 0, 0, Direction.Horizontal)
+        ]);
+
+        Assert.True(validator.Validate(valid).IsValid);
+        Assert.False(validator.Validate(invalid).IsValid);
+    }
 }
+

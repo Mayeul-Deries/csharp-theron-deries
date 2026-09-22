@@ -15,6 +15,29 @@ public class GameEngine
 
     public void SetupPlayerGridWithDefaultShips() => PlaceDefaultShips(PlayerGrid);
     public void SetupOpponentGridWithDefaultShips() => PlaceDefaultShips(OpponentGrid);
+    public void SetupPlayerGridWithRandomShips() => PlaceRandomShips(PlayerGrid);
+    public void SetupOpponentGridWithRandomShips() => PlaceRandomShips(OpponentGrid);
+
+    public bool TrySetupPlayerShips(IEnumerable<Ship> ships)
+    {
+        var selectedShips = ships.ToList();
+        var allShipTypes = Enum.GetValues<ShipType>().ToHashSet();
+
+        if (selectedShips.Count != allShipTypes.Count)
+            return false;
+
+        var shipTypes = selectedShips.Select(ship => ship.Type).ToHashSet();
+        if (shipTypes.Count != allShipTypes.Count || !shipTypes.SetEquals(allShipTypes))
+            return false;
+
+        var grid = new Grid();
+        if (!selectedShips.All(grid.TryAddShip))
+            return false;
+
+        PlayerGrid.Ships.Clear();
+        PlayerGrid.Ships.AddRange(grid.Ships);
+        return true;
+    }
 
     private static void PlaceDefaultShips(Grid grid)
     {
@@ -23,6 +46,33 @@ public class GameEngine
         grid.TryAddShip(new Ship(ShipType.Destroyer, new Coordinate(4, 0), Direction.Horizontal));
         grid.TryAddShip(new Ship(ShipType.Submarine, new Coordinate(6, 0), Direction.Horizontal));
         grid.TryAddShip(new Ship(ShipType.TorpedoBoat, new Coordinate(8, 0), Direction.Horizontal));
+    }
+
+    private static void PlaceRandomShips(Grid grid)
+    {
+        foreach (var shipType in Enum.GetValues<ShipType>())
+        {
+            PlaceRandomShip(grid, shipType);
+        }
+    }
+
+    private static void PlaceRandomShip(Grid grid, ShipType shipType)
+    {
+        for (var attempt = 0; attempt < 1_000; attempt++)
+        {
+            var coordinate = new Coordinate(Random.Shared.Next(10), Random.Shared.Next(10));
+            var direction = Random.Shared.Next(2) == 0
+                ? Direction.Horizontal
+                : Direction.Vertical;
+            var ship = new Ship(shipType, coordinate, direction);
+
+            if (grid.TryAddShip(ship))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("Impossible de placer aléatoirement la flotte.");
     }
 
     public ShotResult TakeShot(Coordinate target)
@@ -52,17 +102,10 @@ public class GameEngine
 
         // Tir touché : vérifier si le navire est coulé
         bool isSunk = hitShip.OccupiedCoordinates.All(c => OpponentGrid.ShotsReceived.Contains(c));
+        bool opponentFleetSunk = OpponentGrid.Ships.All(ship => ship.OccupiedCoordinates.All(
+            coordinate => OpponentGrid.ShotsReceived.Contains(coordinate)));
 
-        // Vérifier si tous les navires adverses sont coulés (victoire du joueur)
-        if (CheckVictory(OpponentGrid))
-        {
-            State = GameState.PlayerWon;
-        }
-        else
-        {
-            // Règle : un tir touché laisse le tour au joueur actuel
-            State = GameState.PlayerTurn;
-        }
+        State = opponentFleetSunk ? GameState.PlayerWon : GameState.PlayerTurn;
 
         return isSunk ? ShotResult.Sunk : ShotResult.Hit;
     }
@@ -83,9 +126,10 @@ public class GameEngine
             throw new InvalidOperationException("Cette case a déjà été visée.");
 
         // Vérifier si un navire est touché
-        var hitShip = PlayerGrid.Ships.FirstOrDefault(s => s.OccupiedCoordinates.Contains(target));
+        var hitShip = PlayerGrid.Ships.FirstOrDefault(
+            ship => ship.OccupiedCoordinates.Contains(target));
 
-        if (hitShip == null)
+        if (hitShip is null)
         {
             // Tir manqué : passe le tour au joueur
             State = GameState.PlayerTurn;
@@ -93,24 +137,13 @@ public class GameEngine
         }
 
         // Tir touché : vérifier si le navire est coulé
-        bool isSunk = hitShip.OccupiedCoordinates.All(c => PlayerGrid.ShotsReceived.Contains(c));
-
-        // Vérifier si tous les navires du joueur sont coulés (victoire de l'IA)
-        if (CheckVictory(PlayerGrid))
-        {
-            State = GameState.OpponentWon;
-        }
-        else
-        {
-            // Règle : un tir touché laisse le tour à l'adversaire actuel
-            State = GameState.OpponentTurn;
-        }
+        bool isSunk = hitShip.OccupiedCoordinates.All(
+            coordinate => PlayerGrid.ShotsReceived.Contains(coordinate));
+        bool playerFleetSunk = PlayerGrid.Ships.All(ship => ship.OccupiedCoordinates.All(
+            coordinate => PlayerGrid.ShotsReceived.Contains(coordinate)));
+            
+        State = playerFleetSunk ? GameState.OpponentWon : GameState.OpponentTurn;
 
         return isSunk ? ShotResult.Sunk : ShotResult.Hit;
-    }
-
-    private static bool CheckVictory(Grid grid)
-    {
-        return grid.Ships.Count > 0 && grid.Ships.All(s => s.OccupiedCoordinates.All(c => grid.ShotsReceived.Contains(c)));
     }
 }
