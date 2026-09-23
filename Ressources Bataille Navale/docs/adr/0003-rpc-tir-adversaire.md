@@ -1,7 +1,7 @@
 # ADR 0003 : dédier une RPC au tir de l'adversaire
 
 ## Statut et date
-Accepté le 2026-09-16, sous réserve de l'implémentation serveur par Boris.
+Accepté le 2026-09-16
 
 ## Contexte
 Le contrat gRPC existant décrit `GameService.TakeShot`, mais cette méthode représente le tir du joueur et ne déclenche pas le tour de l'IA. Le frontend doit pourtant pouvoir exécuter une partie complète contre l'ordinateur après un tir manqué.
