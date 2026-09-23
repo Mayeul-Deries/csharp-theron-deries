@@ -1,181 +1,97 @@
-# Échanges décisifs avec l'IA
+**PROMPTS.md — Échanges décisifs avec l'IA**
 
-## 2026-09-15 — Modélisation du domaine métier et tests unitaires
+**2026-09-16 — Client REST du frontend**
 
-**Outil / modèle** : GitHub Copilot CLI, Claude 3.5 Sonnet.
+**Outil / modèle** : GitHub Copilot CLI (gpt-5.6-luna)
 
-**Contexte** : Initialisation du projet. Le moteur de jeu de la bataille navale doit gérer deux grilles de 10x10, le placement de 5 types de navires canoniques, l'intégrité sans débordement ni chevauchement, l'historique des tirs et les états de victoire, le tout isolable de tout transport web.
+**Contexte** : le backend n'est pas encore implémenté, mais les routes REST et les DTO ont été définis avec Boris. Objectif : avancer le frontend Blazor sans attendre l'API, tout en posant des bases de code propres pour la suite du projet.
 
-**Prompt** : « Conçois le modèle de domaine en C# 10 dans BattleShip.Models avec des entités et records immuables (Coordinate, Ship, Grid, GameEngine), et écris une suite de tests unitaires xUnit complète validant tous les invariants. »
+**Prompt** : « Le backend n'est pas encore fait, mais on a défini le contrat avec mon binôme : routes REST, DTO partagés, flux de tour (voir schéma ci-joint). Je veux démarrer le frontend Blazor sur cette base. Avant de coder, voici quelques consignes générales que je veux que tu respectes pour tout le projet, pas seulement cette tâche : respecte les DTO partagés dans BattleShip.Models et ne les modifie jamais sans qu'on en discute, c'est le contrat entre le front et l'API. Garde un seul niveau de responsabilité par classe : le client HTTP ne doit connaître que le transport, jamais la logique de jeu ni l'état de l'UI. Injecte les dépendances par constructeur plutôt que d'instancier un service en dur, ça facilite les tests et respecte l'inversion de dépendances. Le code doit rester testable, avec un HttpMessageHandler factice pour le client REST par exemple. Nommage en anglais, PascalCase pour les membres publics, pas d'abréviations obscures. Aucune logique métier dans les composants razor, ils orchestrent l'affichage et rien de plus. Gère les erreurs réseau explicitement, pas de try/catch vide. Pour cette tâche précise : crée un client HTTP typé, affiche les deux grilles, envoie les tirs du joueur et relis le statut après chaque tir. Ne simule pas le gRPC tant que son contrat n'est pas disponible, on le fera dans un échange dédié. »
 
-**Réponse résumée** : Création d'un domaine riche : `Coordinate` (borné [0,9]), `Ship` (calcul géométrique des cases selon l'orientation et la longueur propre), `Grid` (gestion de collection et vérification d'invariants), et `GameEngine` (états de partie `NotStarted`, `PlayerTurn`, `OpponentTurn`, `PlayerWon`, `OpponentWon`).
+**Réponse résumée** : client HTTP typé (`GameApiClient`) injecté via DI, interface `IGameApiClient` pour permettre le mock en test, affichage des deux grilles dans `Home.razor`, envoi du tir joueur, relecture du statut après chaque action, gestion des codes d'erreur HTTP avec messages différenciés.
 
-**Décision** : Acceptée. Offre une base robuste, découplée du web et testable unitairement avec xUnit.
+**Décision** : acceptée. Cette séparation permet d'avancer en parallèle du travail de Boris sur l'API, sans dépendance bloquante, et pose une base injectable et testable pour la suite.
 
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : 18 tests réussis validant les règles métier fondamentales. Résultat observé : 18 tests verts.
+**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore` → 22 tests réussis, compilation OK. Ce contrôle ne couvre ni l'API réelle ni CORS.
 
-**Preuve** : Commit `4a975f3 1st Commit : Models and Tests`, `BattleShip.Models/Domain/`, `BattleShip.Tests/EngineTests.cs` et ADR 0001.
+**Preuve** : commit `38207c5`, `GameApiClient.cs`, `IGameApiClient.cs`, `Home.razor`, ADR 0002.
 
----
+**2026-09-16 — RPC dédiée au tir de l'IA**
 
-## 2026-09-16 — Architecture Hybride REST + gRPC-Web & Configuration CORS
+**Outil / modèle** : GitHub Copilot CLI (gpt-5.6-luna)
 
-**Outil / modèle** : Google Antigravity, Gemini.
+**Contexte** : le contrat défini avec Boris ne prévoit `TakeShot` que pour le joueur. Il manque un moyen explicite de déclencher le tir de l'ordinateur après un `Miss`, alors que jouer contre l'IA est une contrainte du socle.
 
-**Contexte** : Le sujet demande une communication fluide entre Blazor WebAssembly et l'API .NET 10, combinant des opérations REST de gestion d'état et un échange binaire gRPC-Web pour l'action de tir.
+**Prompt** : « Le contrat actuel ne couvre que le tir du joueur via TakeShot. On a besoin d'une opération distincte pour le tir de l'IA, pour ne pas ambiguïser qui joue à un instant donné. Je reprends les mêmes principes que sur la tâche précédente : n'altère pas TakeShot, ajoute une RPC séparée TakeOpponentShot, c'est le principe ouvert à l'extension fermé à la modification. Le client gRPC doit être injectable et mockable comme GameApiClient, avec la même logique d'interface. Évite tout couplage entre le composant Blazor et les détails du canal gRPC, passe par le client généré et encapsule-le. Gère les RpcException proprement, avec un message utilisateur clair plutôt qu'une trace technique brute affichée à l'écran. Concrètement : ajoute la RPC TakeOpponentShot dans le proto, génère le client gRPC-Web Blazor, et appelle-la automatiquement après un Miss du joueur. Ne simule pas le comportement serveur, ce sera implémenté côté API par Boris, je veux juste que le front soit prêt à brancher dessus. »
 
-**Prompt** : « Nous voulons une architecture hybride : REST pour le statut (/games), gRPC-Web pour le tir. Comment configurer le middleware gRPC-Web, l'exposition des headers gRPC et la politique CORS pour que Blazor WebAssembly puisse appeler les deux sans blocage ? »
+**Réponse résumée** : nouvelle RPC avec `game_id` en entrée et `result/row/col` en sortie, `OpponentGrpcClient` encapsulé derrière une interface, appel côté frontend après chaque `Miss`, relecture de l'état via `GET /games/{gameId}`, gestion des `RpcException` avec message utilisateur générique.
 
-**Réponse résumée** : Configuration de `builder.Services.AddGrpc()`, `app.UseCors(...)` avec exposition explicite des en-têtes `Grpc-Status`, `Grpc-Message`, `Grpc-Encoding`, `Grpc-Accept-Encoding`, `app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true })`, et mapping de service `app.MapGrpcService<GameGrpcService>().EnableGrpcWeb()`.
+**Décision** : acceptée côté frontend. L'implémentation côté API reste à charge de Boris, on garde une frontière claire entre les deux rôles du tireur.
 
-**Décision** : Acceptée. Permet la coexistence transparente de Minimal APIs REST et d'endpoints gRPC-Web sur le même port HTTP.
+**Vérification** : `dotnet test` → génération protobuf réussie, 28 tests verts. Ce contrôle ne vérifie pas l'échange réseau réel, l'API n'étant pas encore disponible.
 
-**Vérification** : `dotnet build` au vert, validation manuelle via `api.http` et tests d'intégration.
+**Preuve** : `Protos/game.proto`, `OpponentGrpcClient.cs`, `IOpponentGrpcClient.cs`, ADR 0003.
 
-**Preuve** : Commit `132b59b`, `1f6db62`, `BattleShip.API/Program.cs` et ADR 0004.
+**2026-09-17 — Refonte de l'interface (maquette Stitch)**
 
----
+**Outil / modèle** : Antigravity (Gemini)
 
-## 2026-09-16 — Stratégie avancée de l'IA adverse (Checkerboard & Chasse)
+**Contexte** : l'application utilisait encore le thème par défaut de Blazor. Une maquette d'interface de commandement naval a été générée sur Google Stitch pour servir de base à la refonte visuelle.
 
-**Outil / modèle** : Google Antigravity, Gemini.
+**Prompt** : « Le jeu fonctionne mais l'interface reprend le style par défaut de Blazor, ce qui n'est pas satisfaisant pour la démo finale. Voici une maquette que j'ai générée avec Google Stitch (capture jointe) : un thème sombre, un radar ennemi, ma flotte avec son intégrité, un comparateur de flottes et un journal des tirs. Avant de commencer, quelques contraintes non négociables du projet à respecter : les navires adverses non touchés ne doivent jamais être révélés côté client, même dans les données brutes envoyées par l'API, vérifie GamePrivacyMapper si tu touches à CellDto. Toute évolution des DTO partagés doit rester rétrocompatible ou être documentée dans un ADR. Découpe l'UI en composants réutilisables comme FleetStatusPanel et ShotLogPanel plutôt qu'un Home.razor monolithique. Les tests bUnit existants doivent continuer à passer, ajoute les tests correspondant aux nouveaux composants. Le CSS doit rester centralisé, pas de styles inline dispersés dans les composants. Peux-tu établir un plan avant de coder, pour qu'on soit alignés sur l'architecture ? Si ça te convient tu peux démarrer une fois le plan validé. »
 
-**Contexte** : Un tir purement aléatoire de l'adversaire nuit à l'intérêt du jeu et ne respecte pas les critères d'ambition du barème.
+**Réponse résumée** : plan d'architecture proposé et validé, feuille de style tactique centralisée (`app.css`), composants `FleetStatusPanel` et `ShotLogPanel`, `CellDto` enrichi d'un `ShipType` optionnel sans fuite d'information côté adverse, ciblage en deux temps (sélection puis tir).
 
-**Prompt** : « Comment rendre l'IA adverse plus tactique ? Implémente une stratégie en damier (checkerboard) pour la phase de recherche et une logique de chasse ciblant les cases adjacentes après un tir touché. »
+**Décision** : acceptée. Le mapping `GamePrivacyMapper` a été relu en détail pour s'assurer qu'aucune information sensible n'était exposée avant d'intégrer le changement de DTO.
 
-**Réponse résumée** : Création de `AiOpponentService` implémentant une machine à états de ciblage : en mode chasse (s'il existe des cases touchées dont le navire n'est pas coulé), l'IA sonde les 4 cases cardinales voisines valides ; en mode recherche, elle filtre les cases selon la parité `(row + col) % 2 == 0`.
+**Vérification** : `dotnet test` → 49 tests verts. Test manuel dans le navigateur couvrant la séquence complète, tir, riposte de l'IA, journal des tirs.
 
-**Décision** : Acceptée. Augmente significativement le niveau tactique de l'IA tout en garantissant un calcul déterministe et rapide.
+**Preuve** : commits `c3a621e`, `12e4daa`, enregistrement `tactical_ui_test_1789638490429.webp`.
 
-**Vérification** : Tests unitaires dans `BattleShip.Tests/AITests.cs` simulant la traque d'un navire touché. Résultat : l'IA trouve et coule le navire en un nombre de coups réduit.
+**2026-09-17 — Validation directe du tir au clic**
 
-**Preuve** : Commit `132b59b`, `BattleShip.Models/AI/AiOpponentService.cs`, `BattleShip.Tests/AITests.cs`.
+**Outil / modèle** : Antigravity (Gemini)
 
----
+**Contexte** : le ciblage en deux temps ralentissait l'expérience de jeu, et l'animation du réticule provoquait un effet de zoom indésirable.
 
-## 2026-09-16 — Intégration frontend du contrat REST
+**Prompt** : « Je souhaite supprimer l'étape de confirmation lors du tir, le clic sur une case doit déclencher directement le tir, sans validation intermédiaire. Fais en sorte que le changement reste localisé au composant concerné, sans casser la structure des composants mise en place précédemment. Retire aussi l'animation reticle-pulse qui provoque un décalage visuel gênant. »
 
-**Outil / modèle** : GitHub Copilot CLI, gpt-5.6-luna.
+**Réponse résumée** : suppression du bouton de confirmation et de l'état intermédiaire dans `Home.razor`, déclenchement immédiat du tir au clic, retrait de l'animation `reticle-pulse` à l'origine du layout shift.
 
-**Contexte** : Le backend n'est pas encore finalisé par Boris, mais le binôme a défini les routes REST, l'URL locale et le flux de tour. Le frontend Blazor doit avancer sans modifier les DTO partagés.
+**Décision** : acceptée. Gain net en réactivité et en fluidité de jeu, sans effet de bord sur les autres composants.
 
-**Prompt** : « On peut commencer le frontend avec le contrat backend prévu ; respecter les DTO partagés, les routes REST, le rafraîchissement après un tir et préparer l'intégration gRPC de l'IA. »
+**Vérification** : `dotnet test` → tests verts. Enregistrement `direct_shot_test_1789647690777.webp`.
 
-**Réponse résumée** : Créer un client HTTP typé (`GameApiClient`), afficher les deux grilles, envoyer les tirs joueur et relire le statut après chaque tir. Ne pas simuler le gRPC tant que son contrat n'est pas disponible.
+**Preuve** : commit `92c0be1`.
 
-**Décision** : Acceptée. Cette séparation permet de construire et tester le frontend indépendamment du serveur, tout en conservant une frontière claire pour l'IA.
+**2026-09-17 — Placement manuel des navires**
 
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj --no-restore`. Résultat attendu : compilation de l'application et tests verts. Résultat observé : 22 tests réussis.
+**Outil / modèle** : Antigravity (Gemini)
 
-**Preuve** : Commit `38207c5 feat(frontend): integrate game REST contract`, `BattleShip.App/Services/GameApiClient.cs`, `BattleShip.App/Pages/Home.razor` et ADR 0002.
+**Contexte** : les flottes étaient jusque-là placées aléatoirement au démarrage. L'objectif est de permettre au joueur de positionner lui-même ses navires en début de partie, tout en gardant la validation des règles côté serveur.
 
----
+**Prompt** : « Il faudrait permettre au joueur de placer manuellement ses navires au début de la partie, avec choix de l'orientation, une prévisualisation au survol, et une option de placement aléatoire rapide pour aller plus vite en test. La validation des chevauchements et des débordements doit se faire côté serveur dans GameEngine, jamais uniquement côté client, un utilisateur pourrait contourner l'UI. Utilise FluentValidation pour valider le CreateGameRequest entrant, cohérent avec le reste de l'API. Garde BattleShip.Models indépendant de tout détail HTTP ou JSON. Propose un plan avant d'implémenter, je veux valider l'approche avant que tu génères le code. »
 
-## 2026-09-16 — RPC dédiée au tour de l'IA (TakeOpponentShot)
+**Réponse résumée** : plan validé, écran de déploiement avec dock de navires, orientation horizontale ou verticale, prévisualisation au survol, placement aléatoire rapide, DTO `CreateGameRequest` et `ShipPlacementDto`, validation métier dans `GameEngine.TrySetupPlayerShips` et validateur `CreateGameRequestValidator` côté API.
 
-**Outil / modèle** : GitHub Copilot CLI, gpt-5.6-luna.
+**Décision** : acceptée. Quelques ajustements CSS mineurs sur le dock ont été apportés a posteriori par nous-mêmes.
 
-**Contexte** : Le contrat initial décrivait `GameService.TakeShot` uniquement pour le tir joueur et ne déclenchait pas le tour de l'IA. Le frontend doit pourtant pouvoir exécuter une partie complète contre l'ordinateur après un tir manqué.
+**Vérification** : `dotnet test` → 54 tests verts. Enregistrement `fleet_placement_battle_test_1789654820026.webp`.
 
-**Prompt** : « Ajouter une RPC dédiée `TakeOpponentShot`, générer le client Blazor gRPC-Web et l'appeler après un `Miss`, sans simuler le serveur. »
+**Preuve** : `CreateGameRequestValidator.cs`, `GameEngine.cs`, `Home.razor`.
 
-**Réponse résumée** : Conserver `TakeShot` pour le joueur et ajouter `TakeOpponentShot` dans `Protos/game.proto` (avec `game_id` en entrée et `result`, `row`, `col` en sortie). Après l'appel gRPC-Web, le frontend relit `GET /games/{gameId}` pour synchroniser l'affichage.
+**2026-09-17 — Correction : sous-marin et croiseur marqués simultanément**
 
-**Décision** : Acceptée. Une RPC dédiée évite d'ambiguïser l'acteur du tir et maintient une séparation claire des responsabilités.
+**Outil / modèle** : Antigravity (Gemini)
 
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : génération protobuf, compilation Blazor et maintien des tests verts. Résultat observé : 28 tests réussis.
+**Contexte** : le placement d'un sous-marin marquait à tort le croiseur comme placé également, faussant le compteur de progression dans le dock de déploiement.
 
-**Preuve** : Commits `0e0f6e8` et `1ed630a feat(frontend): integrate opponent grpc client`, `Protos/game.proto`, `BattleShip.App/Services/OpponentGrpcClient.cs` et ADR 0003.
+**Prompt** : « Quand je place un sous-marin, le dock marque aussi le croiseur comme placé, alors qu'un seul navire a réellement été positionné, le compteur affiche 2/5 au lieu de 1/5. Identifie la cause racine avant de corriger, je veux comprendre pourquoi, pas juste un patch qui masque le symptôme. Une fois la cause trouvée, corrige et ajoute un test de régression qui aurait détecté ce bug. »
 
----
+**Réponse résumée** : cause identifiée, `Destroyer` et `Submarine` partageaient la même valeur numérique (`= 3`) dans l'énumération `ShipType`, rendant `Destroyer == Submarine` vrai au niveau du runtime par un effet d'alias d'énumération. Renumérotation des valeurs, découplage de la longueur via `Ship.GetLength()`, ajout de tests de régression dédiés.
 
-## 2026-09-17 — Refonte tactique de l'UI d'après maquette Google Stitch
+**Décision** : acceptée. Diagnostic confirmé par comparaison directe des valeurs d'enum avant et après correction.
 
-**Outil / modèle** : Antigravity, Gemini.
+**Vérification** : `dotnet test` → 56/56 tests verts, y compris les deux tests de régression ajoutés. Vérification manuelle complémentaire dans le navigateur.
 
-**Contexte** : Le skin initial de l'application Blazor est le template par défaut. Une maquette générée sur Google Stitch présente une interface de commandement naval sombre (Radar Ennemi, Votre Flotte avec intégrité, État de la flotte Alliés vs Ennemis, et Journal des tirs).
-
-**Prompt** : « Ok niquel. Bon actuellement mon jeu est très moche, c'est le skin de base de blazor et j'ai envie de l'améliorer. J'ai demandé à google stitch de générer une maquette que je te transmets en photo, et je fais appel à toi pour l'implémenter car tu es bon en frontend. Si ca te convient tu peux démarrer. »
-
-**Réponse résumée** : Établir un plan d'architecture respectant les contraintes du cours (anti-triche, contrats DTO, bUnit), enrichir `CellDto` avec `ShipType` optionnel (sans fuite d'information adverse), créer un design system tactique CSS complet (`app.css`), ajouter les composants `FleetStatusPanel` et `ShotLogPanel`, implémenter le ciblage et valider avec 49 tests unitaires et bUnit au vert.
-
-**Décision** : Acceptée. La refonte transforme radicalement l'attrait visuel et la finition du projet tout en garantissant la maintenabilité et le respect strict des règles métier.
-
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Résultat attendu : 49 tests passés avec succès. Test interactif dans le navigateur avec `browser_subagent` validant la séquence complète d'engagement, la riposte gRPC de l'IA et le journal.
-
-**Preuve** : Commits `c3a621e`, `12e4daa`, enregistrement vidéo navigateur `tactical_ui_test_1789638490429.webp`, et revue dans `REVUE-IA.md`.
-
----
-
-## 2026-09-17 — Validation directe du tir au clic et stabilisation visuelle
-
-**Outil / modèle** : Antigravity, Gemini.
-
-**Contexte** : Après la mise en place du skin tactique, le joueur demande de supprimer l'étape de sélection préalable / bouton de confirmation pour valider le tir immédiatement au clic, et de corriger l'effet de zoom/dézoom oscillant provoqué par l'animation CSS `reticle-pulse`.
-
-**Prompt** : « Je ne veux pas de confirmation lors du clic d'une case, je veux que ca valide directe. Retire le bouton de confirmation et de l'état intermédiaire dans Home »
-
-**Réponse résumée** : Retrait du bouton de confirmation et de l'état intermédiaire dans `Home.razor`, déclenchement immédiat de `FireShotAsync` au clic, élimination de `animation: reticle-pulse` et des crochets textuels `[ ⊙ ]` pour garantir un layout shift nul.
-
-**Décision** : Acceptée. Améliore fortement la réactivité du gameplay.
-
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj`. Enregistrement de session navigateur `direct_shot_test_1789647690777.webp`.
-
-**Preuve** : Commit `92c0be1`, tests bUnit validant le déclenchement immédiat.
-
----
-
-## 2026-09-17 — Placement manuel des navires par le joueur au début de partie
-
-**Outil / modèle** : Antigravity, Gemini.
-
-**Contexte** : Permettre au joueur de positionner manuellement ses 5 navires au lancement du jeu ou au redémarrage, avec choix d'orientation, prévisualisation interactive, dock de flotte, options aléatoires rapides et validation d'intégrité côté serveur.
-
-**Prompt** : « il faudrait faire en sorte que le joueur puisse placer ses bateaux au début de la partie, comment penses-tu faire cela ? »
-
-**Réponse résumée** : Modélisation de `CreateGameRequest` et `ShipPlacementDto` avec sérialisation enum `JsonStringEnumConverter`. Ajout de `TrySetupPlayerShips` dans `GameEngine` et validateur FluentValidation `CreateGameRequestValidator`. Écran interactif de déploiement dans `Home.razor` avec survol en cyan/rouge, toggle d'orientation, placement aléatoire et réinitialisation. Couverture de tests étendue à 54 tests au vert.
-
-**Décision** : Acceptée. Offre une expérience stratégique complète au joueur avant le combat.
-
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj` (54 réussis). Enregistrement vidéo navigateur `fleet_placement_battle_test_1789654820026.webp` et capture `final_game_state_1789655157917.png`.
-
-**Preuve** : Commits `dfdd749` et `1911ae3`, `CreateGameRequest.cs`, `CreateGameRequestValidator.cs`, `GameEngine.cs`, `Home.razor`.
-
----
-
-## 2026-09-17 — Résolution de la collision d'alias d'énumération entre Sous-marin et Croiseur
-
-**Outil / modèle** : Antigravity, Gemini.
-
-**Contexte** : Lors du placement manuel de la flotte, placer un Sous-marin entraînait l'affichage simultané du Sous-marin et du Croiseur (Destroyer) comme « Placé » dans le dock, avec un compteur erroné.
-
-**Prompt** : « quand je place un sous-marin ca m'en place un mais ca note les 2 comme placés, sauf qu'en réalité j'en ai placé qu'un sur deux »
-
-**Réponse résumée** : Identification de la cause racine dans l'énumération C# `ShipType` où `Destroyer = 3` et `Submarine = 3` partageaient la même valeur entière sous-jacente, créant un alias indistinguable à l'exécution pour l'opérateur d'égalité, les collections de hachage et la réflexion. Attribution de valeurs entières distinctes uniques (`Carrier = 1`, `Battleship = 2`, `Destroyer = 3`, `Submarine = 4`, `TorpedoBoat = 5`), dissociation de la taille en cases via la méthode `Ship.GetLength()`, sécurisation de l'isolation du dock dans `Home.razor`, ajout de tests unitaires et bUnit (56 tests au total, 100% verts).
-
-**Décision** : Acceptée. Règle définitivement la collision d'alias tout en conservant les dimensions des navires (3 cases pour chacun) et le respect des règles métier.
-
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj` (56/56 réussis). Test interactif dans le navigateur avec enregistrement vidéo confirmant l'indépendance stricte du Sous-marin et du Croiseur.
-
-**Preuve** : Commit `02f9bd4`, `ShipType.cs`, `Ship.cs`, `GameEngine.cs`, `Home.razor`, `EngineTests.cs`, `HomeTests.cs`.
-
----
-
-## 2026-09-22 — Résolution post-merge CORS/HTTPS et masquage du bandeau d'erreur Blazor
-
-**Outil / modèle** : Antigravity, Gemini.
-
-**Contexte** : Après le merge de la branche `feat-frontend` sur `main`, deux anomalies subsistaient : échec de redirection HTTPS en mode développement HTTP pur (`http://localhost:5282`) bloquant les appels du frontend (`http://localhost:5270`), et affichage permanent de la bannière `#blazor-error-ui` en bas de page dès le chargement initial.
-
-**Prompt** : « Tout semble bien fonctionner mais juste j'ai une erreur "An unhandled error has occurred. [Reload]" en bas de la page ou pendant le chargement mais ca n'empeche pas de fonctionner, à quoi ça peut être dû ? »
-
-**Réponse résumée** :
-1. Dans `BattleShip.API/Program.cs`, suppression de `app.UseHttpsRedirection()` en profil HTTP local et ajout de l'origine frontend `http://localhost:5270` dans la politique CORS.
-2. Dans `BattleShip.App/wwwroot/css/app.css`, ajout de la règle `#blazor-error-ui { display: none; ... }` avec style sombre tactique (l'élément `<div>` Blazor n'avait aucun CSS de masquage par défaut suite à la refonte HUD).
-
-**Décision** : Acceptée. Rétablit le bon fonctionnement réseau de l'API et nettoie parfaitement l'interface utilisateur.
-
-**Vérification** : `dotnet test BattleShip.Tests\BattleShip.Tests.csproj` (56 tests réussis), validation navigateur en mode HTTP.
-
-**Preuve** : Commit `ca3a7a0`, `BattleShip.API/Program.cs`, `BattleShip.App/wwwroot/css/app.css`, `BattleShip.App/wwwroot/index.html`.
+**Preuve** : `ShipType.cs`, `Ship.cs`, `EngineTests.cs`, `HomeTests.cs`.
