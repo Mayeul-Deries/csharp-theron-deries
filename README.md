@@ -125,11 +125,10 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
 
 ## 6. Livrables d'Ingénierie & Preuves
 
-- **Historique des échanges d'IA** : [PROMPTS.md](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/PROMPTS.md)
-- **Revues argumentées de propositions IA** : [REVUE-IA.md](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/REVUE-IA.md) (5 revues détaillées avec hypothèses et vérifications)
+- **Historique des échanges d'IA** : [PROMPTS.md](./PROMPTS.md)
+- **Revues argumentées de propositions IA** : [REVUE-IA.md](./REVUE-IA.md) (5 revues détaillées avec hypothèses et vérifications)
 - **Architecture Decision Records (ADR)** :
-  - [ADR 0001 : Modélisation du domaine et intégrité de la grille](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0001-modele.md)
-  - [ADR 0002 : Isolation des appels REST du frontend](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0002-client-http-frontend.md)
-  - [ADR 0003 : Dédier une RPC au tir de l'adversaire](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0003-rpc-tir-adversaire.md)
-  - [ADR 0004 : Architecture de communication (REST vs gRPC-Web)](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/docs/adr/0004-architecture-hybride.md)
-- **Fichier de requêtes HTTP manuelles** : [api.http](file:///c:/Users/mayeu/Desktop/IMT%201/S9/csharp-theron-deries/api.http)
+  - [ADR 0001 : Modélisation du domaine et intégrité de la grille](./docs/adr/0001-modele.md)
+  - [ADR 0002 : Isolation des appels REST du frontend](./docs/adr/0002-client-http-frontend.md)
+  - [ADR 0003 : Dédier une RPC au tir de l'adversaire](./docs/adr/0003-rpc-tir-adversaire.md)
+- **Fichier de requêtes HTTP manuelles** : [api.http](./api.http)
