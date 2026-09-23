@@ -77,6 +77,7 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
 - **Règles d'invariants** : Détection géométrique stricte interdisant tout chevauchement ou débordement de grille (10x10).
 - **Résolution des tirs** : Calcul déterministe (`Miss`, `Hit`, `Sunk`), identification immédiate de la destruction complète d'un navire.
 - **Règles anti-triche** : Les positions des navires ennemis non découverts ne sont **jamais exposées** dans les DTOs renvoyés par l'API (`GamePrivacyMapper`).
+- **IA adverse tactique** : Algorithme à deux phases combinant une recherche en damier (*checkerboard*) et un mode traque/chasse ciblant les cases adjacentes après chaque touche (`AiOpponentService`).
 
 ### B. Validation Serveur & API REST
 - **Endpoints REST documentés** :
@@ -118,7 +119,7 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
 
 ### Fonctionnalités Écartées & Justifications
 - **Multijoueur en ligne (SignalR / WebSockets)** : Écarté pour concentrer les efforts sur l'intégration gRPC-Web demandée au barème et garantir un mode solo contre l'IA d'une finition irréprochable.
-- **IA prédictive par cartes de probabilités (heatmaps)** : L'IA adverse joue de façon aléatoire sur les cases non encore ciblées. Un algorithme de traque heuristique a été écarté pour privilégier la robustesse de l'échange gRPC et la clarté du flux de tour.
+- **IA probabiliste lourde par cartes de chaleur (Monte-Carlo / heatmaps)** : L'IA adverse intègre déjà une stratégie tactique optimale damier/chasse (`AiOpponentService`). Un algorithme bayésien lourd a été écarté pour préserver la réactivité et la robustesse de l'échange gRPC.
 - **Animations 3D et effets sonores** : Écartés pour préserver des temps de chargement optimaux en WebAssembly et une compatibilité maximale sans dépendances externes lourdes.
 
 ---
@@ -126,9 +127,10 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
 ## 6. Livrables d'Ingénierie & Preuves
 
 - **Historique des échanges d'IA** : [PROMPTS.md](./PROMPTS.md)
-- **Revues argumentées de propositions IA** : [REVUE-IA.md](./REVUE-IA.md) (5 revues détaillées avec hypothèses et vérifications)
+- **Revues argumentées de propositions IA** : [REVUE-IA.md](./REVUE-IA.md) (7 revues détaillées avec hypothèses et vérifications)
 - **Architecture Decision Records (ADR)** :
   - [ADR 0001 : Modélisation du domaine et intégrité de la grille](./docs/adr/0001-modele.md)
   - [ADR 0002 : Isolation des appels REST du frontend](./docs/adr/0002-client-http-frontend.md)
   - [ADR 0003 : Dédier une RPC au tir de l'adversaire](./docs/adr/0003-rpc-tir-adversaire.md)
+  - [ADR 0004 : Architecture de communication (REST vs gRPC-Web)](./docs/adr/0004-architecture-hybride.md)
 - **Fichier de requêtes HTTP manuelles** : [api.http](./api.http)
