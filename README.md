@@ -1,7 +1,7 @@
 # Projet C# ASP.NET Core & Blazor WebAssembly — Bataille Navale
 
 ## Binôme
-- **Boris Théron** (`boris.theron@gmail.com`)
+- **Boris Theron** (`boris.theron@gmail.com`)
 - **Mayeul Deries** (`mayeul.deries@gmail.com`)
 
 ---
