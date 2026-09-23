@@ -17,7 +17,7 @@ Le code implémenté dans `AiOpponentService.cs` réduit l'espace de recherche l
 Acceptée. Améliore la jouabilité et l'ambition du projet.
 
 **Preuves et limites**
-Preuve par commit. Limite : l'IA ne mémorise pas les navires coulés pour éviter de tirer autour, ce qui pourrait être une extension.
+Preuve par commit. Limite : l'IA ne mémorise pas les navires coulés. 
 
 ## Revue : Architecture Hybride (REST + gRPC-Web)
 **Proposition examinée**
@@ -210,4 +210,3 @@ Acceptée. Solution canonique et robuste selon les standards du C# moderne et le
 **Preuves et limites**  
 - `BattleShip.Models/Enums/ShipType.cs`, `BattleShip.Models/Domain/Ship.cs`, `BattleShip.Models/Domain/GameEngine.cs`, `BattleShip.App/Pages/Home.razor`.
 - `EngineTests.cs`, `HomeTests.cs`.
-- Session enregistrée : `submarine_destroyer_fix_test_1789657015807.webp`, capture : `fleet_placed_verified_1789660999854.png`.
