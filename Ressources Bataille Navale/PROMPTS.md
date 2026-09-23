@@ -114,7 +114,7 @@
 
 **Contexte** : Après la mise en place du skin tactique, le joueur demande de supprimer l'étape de sélection préalable / bouton de confirmation pour valider le tir immédiatement au clic, et de corriger l'effet de zoom/dézoom oscillant provoqué par l'animation CSS `reticle-pulse`.
 
-**Prompt** : « Je ne veux pas de confirmation lors du clic d'une case, je veux que ca valide directe »
+**Prompt** : « Je ne veux pas de confirmation lors du clic d'une case, je veux que ca valide directe. Retire le bouton de confirmation et de l'état intermédiaire dans Home »
 
 **Réponse résumée** : Retrait du bouton de confirmation et de l'état intermédiaire dans `Home.razor`, déclenchement immédiat de `FireShotAsync` au clic, élimination de `animation: reticle-pulse` et des crochets textuels `[ ⊙ ]` pour garantir un layout shift nul.
 
@@ -132,7 +132,7 @@
 
 **Contexte** : Permettre au joueur de positionner manuellement ses 5 navires au lancement du jeu ou au redémarrage, avec choix d'orientation, prévisualisation interactive, dock de flotte, options aléatoires rapides et validation d'intégrité côté serveur.
 
-**Prompt** : « il faudrait faire en sorte que le joueur puisse placer ses bateaux au début de la partie »
+**Prompt** : « il faudrait faire en sorte que le joueur puisse placer ses bateaux au début de la partie, comment penses-tu faire cela ? »
 
 **Réponse résumée** : Modélisation de `CreateGameRequest` et `ShipPlacementDto` avec sérialisation enum `JsonStringEnumConverter`. Ajout de `TrySetupPlayerShips` dans `GameEngine` et validateur FluentValidation `CreateGameRequestValidator`. Écran interactif de déploiement dans `Home.razor` avec survol en cyan/rouge, toggle d'orientation, placement aléatoire et réinitialisation. Couverture de tests étendue à 54 tests au vert.
 
@@ -168,7 +168,7 @@
 
 **Contexte** : Après le merge de la branche `feat-frontend` sur `main`, deux anomalies subsistaient : échec de redirection HTTPS en mode développement HTTP pur (`http://localhost:5282`) bloquant les appels du frontend (`http://localhost:5270`), et affichage permanent de la bannière `#blazor-error-ui` en bas de page dès le chargement initial.
 
-**Prompt** : « Tout semble bien fonctionner mais juste j'ai une erreur "An unhandled error has occurred. [Reload]" en bas de la page ou pendant le chargement mais ca n'empeche pas de fonctionner en soit juste c'est un peu chiant et ca fait tache »
+**Prompt** : « Tout semble bien fonctionner mais juste j'ai une erreur "An unhandled error has occurred. [Reload]" en bas de la page ou pendant le chargement mais ca n'empeche pas de fonctionner, à quoi ça peut être dû ? »
 
 **Réponse résumée** :
 1. Dans `BattleShip.API/Program.cs`, suppression de `app.UseHttpsRedirection()` en profil HTTP local et ajout de l'origine frontend `http://localhost:5270` dans la politique CORS.
