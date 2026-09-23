@@ -127,7 +127,7 @@ Le projet respecte les principes de la **Clean Architecture** et du **SOLID** :
 ## 6. Livrables d'Ingénierie & Preuves
 
 - **Historique des échanges d'IA** : [PROMPTS.md](./PROMPTS.md)
-- **Revues argumentées de propositions IA** : [REVUE-IA.md](./REVUE-IA.md) (7 revues détaillées avec hypothèses et vérifications)
+- **Revues argumentées de propositions IA** : [REVUE-IA.md](./REVUE-IA.md) (4 revues détaillées avec hypothèses et vérifications)
 - **Architecture Decision Records (ADR)** :
   - [ADR 0001 : Modélisation du domaine et intégrité de la grille](./docs/adr/0001-modele.md)
   - [ADR 0002 : Isolation des appels REST du frontend](./docs/adr/0002-client-http-frontend.md)
